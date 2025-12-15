@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../ui/signin.dart'; // sesuaikan path SignInPage kamu
 
 class LogoutDialog extends StatelessWidget {
   const LogoutDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final ApiService apiService = ApiService();
+
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       contentPadding: const EdgeInsets.all(20),
@@ -26,11 +30,18 @@ class LogoutDialog extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(); // tutup popup
-                  // TODO: Tambahkan aksi logout di sini, misalnya hapus token SharedPreferences
-                  // lalu arahkan ke halaman SignIn
-                  // Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => SignInPage()));
+                onPressed: () async {
+                  // 1️⃣ Hapus token
+                  await apiService.logout();
+
+                  // 2️⃣ Tutup dialog
+                  Navigator.of(context).pop();
+
+                  // 3️⃣ Arahkan ke SignIn & hapus semua halaman sebelumnya
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const SignInPage()),
+                    (route) => false,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent,
@@ -54,7 +65,7 @@ class LogoutDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[400],
+                  backgroundColor: Colors.grey,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
