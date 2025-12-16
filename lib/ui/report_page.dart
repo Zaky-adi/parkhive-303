@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../models/area_parkir_model.dart';
 import 'theme.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 
 class ReportPage extends StatefulWidget {
