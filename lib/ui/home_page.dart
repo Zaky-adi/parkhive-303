@@ -76,23 +76,30 @@ class HomeContent extends StatelessWidget {
           children: [
             headerCard(context),
             const SizedBox(height: 18),
-
             sectionTitle('Parkir terdekat'),
             const SizedBox(height: 10),
-            areaCard(context, 'Parkiran GU', '50 m', '13/20 Tersedia', 'Mobil', true),
+            areaCard(context, 'Parkiran GU', '50 m', '13/20 Tersedia', 'Mobil',
+                true),
             const SizedBox(height: 10),
-            areaCard(context, 'Parkiran TA', '100 m', '3/20 Penuh', 'Motor', false),
+            areaCard(
+                context, 'Parkiran TA', '100 m', '3/20 Penuh', 'Motor', false),
             const SizedBox(height: 10),
-            areaCard(context, 'Parkiran PPU', '20 m', '19/20 Tersedia', 'Mobil', true),
+            areaCard(context, 'Parkiran PPU', '20 m', '19/20 Tersedia', 'Mobil',
+                true),
             const SizedBox(height: 20),
-
             sectionTitle('Aktivitas terbaru'),
             const SizedBox(height: 10),
-            activityCard('Novia', 'melaporkan spot baru di parkiran TA', '5 menit lalu', '+10 poin'),
+            activityCard('Novia', 'melaporkan spot baru di parkiran TA',
+                '5 menit lalu', '+10 poin'),
             const SizedBox(height: 8),
-            activityCard('Putri', 'melaporkan spot penuh di parkiran GU', '3 menit lalu', '+5 poin'),
+            activityCard('Putri', 'melaporkan spot penuh di parkiran GU',
+                '3 menit lalu', '+5 poin'),
             const SizedBox(height: 8),
-            activityCard('Ridho', 'mengonfirmasi ketersediaan di parkiran Belakang', '4 menit lalu', '+5 poin'),
+            activityCard(
+                'Ridho',
+                'mengonfirmasi ketersediaan di parkiran Belakang',
+                '4 menit lalu',
+                '+5 poin'),
             const SizedBox(height: 80),
           ],
         ),
@@ -108,7 +115,9 @@ class HomeContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.yellow,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,9 +128,12 @@ class HomeContent extends StatelessWidget {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Hai!', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                  Text('Hai!',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
                   SizedBox(height: 4),
-                  Text('Cari parkir terdekat yuk!', style: TextStyle(fontSize: 16)),
+                  Text('Cari parkir terdekat yuk!',
+                      style: TextStyle(fontSize: 16)),
                 ],
               ),
               Stack(
@@ -133,10 +145,12 @@ class HomeContent extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const NotificationPage()),
+                          MaterialPageRoute(
+                              builder: (_) => const NotificationPage()),
                         );
                       },
-                      icon: const Icon(Icons.notifications_none_rounded, color: Colors.black),
+                      icon: const Icon(Icons.notifications_none_rounded,
+                          color: Colors.black),
                     ),
                   ),
                   Positioned(
@@ -182,9 +196,13 @@ class HomeContent extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.black, size: 22),
             const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(value,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const SizedBox(height: 2),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
@@ -207,18 +225,24 @@ class HomeContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          Text(title,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
+              const Icon(Icons.location_on_outlined,
+                  size: 14, color: Colors.black54),
               const SizedBox(width: 4),
-              Text(distance, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              Text(distance,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
             ],
           ),
           const SizedBox(height: 6),
@@ -241,7 +265,9 @@ class HomeContent extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(type, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+              Text(type,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w500, fontSize: 13)),
               const Spacer(),
               GestureDetector(
                 onTap: () {
@@ -250,7 +276,8 @@ class HomeContent extends StatelessWidget {
                     isScrollControlled: true,
                     backgroundColor: Colors.white,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
                     ),
                     builder: (_) => const RecommendationSheet(),
                   );
@@ -271,26 +298,32 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  static Widget activityCard(String name, String message, String time, String point) {
+  static Widget activityCard(
+      String name, String message, String time, String point) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               RichText(
                 text: TextSpan(
                   style: const TextStyle(color: Colors.black),
                   children: [
                     TextSpan(
                       text: '$name ',
-                      style: const TextStyle(color: Color(0xFFEF9A00), fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          color: Color(0xFFEF9A00),
+                          fontWeight: FontWeight.bold),
                     ),
                     TextSpan(text: message),
                   ],
@@ -299,22 +332,29 @@ class HomeContent extends StatelessWidget {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(Icons.access_time, size: 14, color: Colors.black45),
+                  const Icon(Icons.access_time,
+                      size: 14, color: Colors.black45),
                   const SizedBox(width: 4),
-                  Text(time, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                  Text(time,
+                      style:
+                          const TextStyle(color: Colors.black54, fontSize: 12)),
                 ],
               ),
             ]),
           ),
           Text(point,
-              style: const TextStyle(color: AppColors.deepYellow, fontWeight: FontWeight.w700, fontSize: 13)),
+              style: const TextStyle(
+                  color: AppColors.deepYellow,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
         ],
       ),
     );
   }
 
   static Widget sectionTitle(String title) {
-    return Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700));
+    return Text(title,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700));
   }
 }
 
@@ -341,12 +381,15 @@ class RecommendationSheet extends StatelessWidget {
             children: [
               const Center(
                 child: Text('Rekomendasi terbaik',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
               ),
               const SizedBox(height: 18),
-              parkirItem('Parkir samping TA', '50 m', '13/20 Tersedia', 'Motor'),
+              parkirItem(
+                  'Parkir samping TA', '50 m', '13/20 Tersedia', 'Motor'),
               const SizedBox(height: 12),
-              parkirItem('Parkir belakang GU', '70 m', '17/20 Tersedia', 'Mobil'),
+              parkirItem(
+                  'Parkir belakang GU', '70 m', '17/20 Tersedia', 'Mobil'),
             ],
           ),
         );
@@ -354,24 +397,31 @@ class RecommendationSheet extends StatelessWidget {
     );
   }
 
-  static Widget parkirItem(String name, String distance, String available, String type) {
+  static Widget parkirItem(
+      String name, String distance, String available, String type) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          Text(name,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.location_on_outlined, size: 14, color: Colors.black54),
+              const Icon(Icons.location_on_outlined,
+                  size: 14, color: Colors.black54),
               const SizedBox(width: 4),
-              Text(distance, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              Text(distance,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54)),
             ],
           ),
           const SizedBox(height: 6),
@@ -386,10 +436,14 @@ class RecommendationSheet extends StatelessWidget {
                 ),
                 child: Text(available,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600, fontSize: 12.5, color: AppColors.yellow)),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12.5,
+                        color: AppColors.yellow)),
               ),
               const SizedBox(width: 10),
-              Text(type, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+              Text(type,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w500, fontSize: 13)),
             ],
           ),
         ],
