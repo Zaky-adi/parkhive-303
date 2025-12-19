@@ -20,7 +20,7 @@ class _HomePageState extends State<HomePage> {
     MapPage(),
     const ReportPage(),
     const LeaderboardPage(),
-    const ProfilePage(),
+    ProfilePage(),
   ];
 
   @override

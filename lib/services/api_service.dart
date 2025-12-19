@@ -196,10 +196,7 @@ class ApiService {
 
   Future<Map<String, dynamic>> getProfile() async {
     final token = await getToken();
-
-    if (token == null) {
-      throw Exception('Token tidak ditemukan');
-    }
+    if (token == null) throw Exception('Token tidak ditemukan');
 
     final response = await http.get(
       Uri.parse('$_baseUrl/profile'),
@@ -210,7 +207,10 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final jsonResponse = jsonDecode(response.body);
+
+      // ⬇️ AMBIL DATA YANG BENAR
+      return jsonResponse['data'];
     } else {
       throw Exception('Gagal memuat profile');
     }

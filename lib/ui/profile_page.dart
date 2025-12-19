@@ -3,35 +3,86 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'logout_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  ProfilePage({Key? key}) : super(key: key);
 
-  // ===============================
-  // 🔹 API PROFILE
-  // ===============================
+  final ApiService _apiService = ApiService();
+
   Future<Map<String, dynamic>> fetchProfile() async {
-    // 🔑 Ambil token user login
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('authToken');
+    final response = await _apiService.getProfile();
 
-    if (token == null) {
-      throw Exception('Token tidak ditemukan, silakan login ulang');
+    // 🔥 kalau API kamu bungkus pakai "data"
+    if (response.containsKey('data')) {
+      return response['data'];
     }
 
-    final response = await http.get(
-      Uri.parse('https://trpl-303-park-hive.vercel.app/public/api/profile'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+    return response;
+  }
+
+  void showLaporanDialog(BuildContext context, List aktivitas) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Detail Laporan'),
+        content: aktivitas.isEmpty
+            ? const Text('Belum ada laporan')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: aktivitas.length,
+                  itemBuilder: (context, index) {
+                    final item = aktivitas[index];
+                    return ListTile(
+                      leading: const Icon(Icons.location_on),
+                      title: Text(item['deskripsi'] ?? '-'),
+                      subtitle: Text(item['waktu'] ?? '-'),
+                    );
+                  },
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
     );
+  }
 
-    if (response.statusCode != 200) {
-      throw Exception('Gagal memuat profil');
-    }
-
-    return json.decode(response.body);
+  void showBadgeDialog(BuildContext context, List badges) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Badge Kamu'),
+        content: badges.isEmpty
+            ? const Text('Belum memiliki badge')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: badges.length,
+                  itemBuilder: (context, index) {
+                    final badge = badges[index];
+                    return ListTile(
+                      leading: const Icon(Icons.workspace_premium),
+                      title: Text(badge['nama'] ?? '-'),
+                      subtitle: Text(badge['deskripsi'] ?? '-'),
+                    );
+                  },
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -67,11 +118,11 @@ class ProfilePage extends StatelessWidget {
             final String nama = data['nama'] ?? '-';
             final String email = data['email'] ?? '-';
             final int totalPoin = data['total_poin'] ?? 0;
-            final int totalLaporan = data['total_laporan'] ?? 0;
+            final int totalLaporan = data['jumlah_laporan'] ?? 0;
             final int totalBadge = data['jumlah_badge'] ?? 0;
 
-            final List aktivitas = (data['aktivitas_terakhir'] is List)
-                ? data['aktivitas_terakhir']
+            final List aktivitas = (data['aktivitas'] is List)
+                ? (data['aktivitas'] as List).take(3).toList()
                 : [];
 
             return SingleChildScrollView(
@@ -124,10 +175,23 @@ class ProfilePage extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
                               statItem(Icons.star, '$totalPoin', 'Poin'),
-                              statItem(Icons.location_on, '$totalLaporan',
-                                  'Laporan'),
-                              statItem(Icons.workspace_premium, '$totalBadge',
-                                  'Badge'),
+                              statItem(
+                                Icons.location_on,
+                                '$totalLaporan',
+                                'Laporan',
+                                onTap: () {
+                                  showLaporanDialog(context, aktivitas);
+                                },
+                              ),
+                              statItem(
+                                Icons.workspace_premium,
+                                '$totalBadge',
+                                'Badge',
+                                onTap: () {
+                                  showBadgeDialog(
+                                      context, data['badges'] ?? []);
+                                },
+                              ),
                             ],
                           ),
                         ),
@@ -167,10 +231,10 @@ class ProfilePage extends StatelessWidget {
                   ] else ...[
                     ...aktivitas.map((item) {
                       return activityCard(
-                        icon: Icons.location_on_outlined,
-                        title: item['judul'] ?? '-',
+                        icon: Icons.history,
+                        title: item['judul'] ?? 'Aktivitas',
                         subtitle:
-                            '${item['lokasi'] ?? '-'} • ${item['waktu'] ?? '-'}',
+                            '${item['deskripsi'] ?? '-'} • ${item['waktu'] ?? '-'}',
                       );
                     }).toList(),
                   ],
@@ -225,16 +289,29 @@ class ProfilePage extends StatelessWidget {
   // ===============================
   // WIDGET STAT
   // ===============================
-  static Widget statItem(IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(icon, size: 28),
-        const SizedBox(height: 6),
-        Text(value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        Text(label,
-            style: const TextStyle(fontSize: 12, color: Colors.black54)),
-      ],
+  static Widget statItem(
+    IconData icon,
+    String value,
+    String label, {
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          Icon(icon, size: 28),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+        ],
+      ),
     );
   }
 
@@ -245,38 +322,44 @@ class ProfilePage extends StatelessWidget {
     required IconData icon,
     required String title,
     required String subtitle,
+    VoidCallback? onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: const Color(0xFFFFF3CC),
-              child: Icon(icon, color: const Color(0xFFF6C709)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(subtitle,
-                      style:
-                          const TextStyle(color: Colors.black54, fontSize: 13)),
-                ],
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFFFFF3CC),
+                child: Icon(icon, color: const Color(0xFFF6C709)),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style:
+                          const TextStyle(color: Colors.black54, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
