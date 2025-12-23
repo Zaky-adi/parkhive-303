@@ -1,48 +1,146 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'logout_dialog.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import 'logout_dialog.dart';
 
 class ProfilePage extends StatelessWidget {
   ProfilePage({Key? key}) : super(key: key);
 
   final ApiService _apiService = ApiService();
 
+  // ===============================
+  // API PROFILE
+  // ===============================
   Future<Map<String, dynamic>> fetchProfile() async {
     final response = await _apiService.getProfile();
 
-    // 🔥 kalau API kamu bungkus pakai "data"
     if (response.containsKey('data')) {
       return response['data'];
     }
-
     return response;
   }
 
-  void showLaporanDialog(BuildContext context, List aktivitas) {
+  // ===============================
+  // HELPER FORMAT
+  // ===============================
+  String formatTipeLaporan(String? tipe) {
+    if (tipe == null) return '-';
+    return tipe.replaceAll('_', ' ');
+  }
+
+  Color statusColor(String? status) {
+    switch (status) {
+      case 'Terverifikasi':
+        return Colors.green;
+      case 'Ditolak':
+        return Colors.red;
+      case 'Menunggu':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // ===============================
+  // DIALOG LAPORAN
+  // ===============================
+  void showLaporanDialog(BuildContext context, List laporans) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Detail Laporan'),
-        content: aktivitas.isEmpty
-            ? const Text('Belum ada laporan')
+        title: const Text('Laporan Parkir Saya'),
+        content: laporans.isEmpty
+            ? const Text('Belum ada laporan parkir')
             : SizedBox(
                 width: double.maxFinite,
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: aktivitas.length,
+                  itemCount: laporans.length,
                   itemBuilder: (context, index) {
-                    final item = aktivitas[index];
+                    final l = laporans[index];
                     return ListTile(
-                      leading: const Icon(Icons.location_on),
-                      title: Text(item['deskripsi'] ?? '-'),
-                      subtitle: Text(item['waktu'] ?? '-'),
+                      leading: const Icon(Icons.local_parking),
+                      title: Text(formatTipeLaporan(l['tipe_laporan'])),
+                      subtitle: Row(
+                        children: [
+                          Text(
+                            l['status'] ?? '-',
+                            style: TextStyle(
+                              color: statusColor(l['status']),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Text(' • '),
+                          Text(l['tanggal_laporan'] ?? '-'),
+                        ],
+                      ),
                     );
                   },
                 ),
               ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void showPoinDialog(BuildContext context, int poin) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Total Poin'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.star, color: Colors.amber, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              '$poin Poin',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Poin didapat dari aktivitas, laporan, dan verifikasi.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void showBadgeDetail(BuildContext context, Map badge) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(badge['nama'] ?? 'Badge'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.workspace_premium,
+              size: 48,
+              color: Colors.amber,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              badge['deskripsi'] ?? '-',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -57,20 +155,29 @@ class ProfilePage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Badge Kamu'),
+        title: const Text('Badge Saya'),
         content: badges.isEmpty
-            ? const Text('Belum memiliki badge')
+            ? const Text('Kamu belum memiliki badge')
             : SizedBox(
                 width: double.maxFinite,
-                child: ListView.builder(
+                child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: badges.length,
+                  separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (context, index) {
                     final badge = badges[index];
                     return ListTile(
-                      leading: const Icon(Icons.workspace_premium),
-                      title: Text(badge['nama'] ?? '-'),
-                      subtitle: Text(badge['deskripsi'] ?? '-'),
+                      leading: const Icon(
+                        Icons.workspace_premium,
+                        color: Color(0xFFF6C709),
+                      ),
+                      title: Text(
+                        badge['nama_badge'] ?? '-',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        'Syarat poin: ${badge['syarat_poin'] ?? 0}',
+                      ),
                     );
                   },
                 ),
@@ -85,6 +192,9 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  // ===============================
+  // UI
+  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,12 +203,10 @@ class ProfilePage extends StatelessWidget {
         child: FutureBuilder<Map<String, dynamic>>(
           future: fetchProfile(),
           builder: (context, snapshot) {
-            // ===== LOADING =====
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // ===== ERROR =====
             if (snapshot.hasError) {
               return Center(
                 child: Text(
@@ -108,8 +216,7 @@ class ProfilePage extends StatelessWidget {
               );
             }
 
-            // ===== DATA KOSONG =====
-            if (!snapshot.hasData || snapshot.data == null) {
+            if (!snapshot.hasData) {
               return const Center(child: Text('Data tidak tersedia'));
             }
 
@@ -121,9 +228,9 @@ class ProfilePage extends StatelessWidget {
             final int totalLaporan = data['jumlah_laporan'] ?? 0;
             final int totalBadge = data['jumlah_badge'] ?? 0;
 
-            final List aktivitas = (data['aktivitas'] is List)
-                ? (data['aktivitas'] as List).take(3).toList()
-                : [];
+            final List aktivitas = data['aktivitas'] ?? [];
+            final List laporans = data['laporan'] ?? [];
+            final List badges = (data['badges'] is List) ? data['badges'] : [];
 
             return SingleChildScrollView(
               child: Column(
@@ -132,13 +239,11 @@ class ProfilePage extends StatelessWidget {
                   // HEADER PROFIL
                   // ===============================
                   Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 30),
                     decoration: const BoxDecoration(
                       color: Color(0xFFF6C709),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(24),
-                        bottomRight: Radius.circular(24),
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(24),
                       ),
                     ),
                     child: Column(
@@ -160,7 +265,7 @@ class ProfilePage extends StatelessWidget {
                         Text(
                           nama,
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 18),
+                              fontSize: 18, fontWeight: FontWeight.w700),
                         ),
                         Text(email),
                         const SizedBox(height: 20),
@@ -174,22 +279,27 @@ class ProfilePage extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              statItem(Icons.star, '$totalPoin', 'Poin'),
+                              statItem(
+                                Icons.star,
+                                '$totalPoin',
+                                'Poin',
+                                onTap: () {
+                                  showPoinDialog(context, totalPoin);
+                                },
+                              ),
                               statItem(
                                 Icons.location_on,
                                 '$totalLaporan',
                                 'Laporan',
-                                onTap: () {
-                                  showLaporanDialog(context, aktivitas);
-                                },
+                                onTap: () =>
+                                    showLaporanDialog(context, laporans),
                               ),
                               statItem(
                                 Icons.workspace_premium,
                                 '$totalBadge',
                                 'Badge',
                                 onTap: () {
-                                  showBadgeDialog(
-                                      context, data['badges'] ?? []);
+                                  showBadgeDialog(context, badges);
                                 },
                               ),
                             ],
@@ -204,31 +314,14 @@ class ProfilePage extends StatelessWidget {
                   // ===============================
                   // AKTIVITAS TERAKHIR
                   // ===============================
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Aktivitas terakhir',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey[900],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                  sectionTitle('Aktivitas terakhir'),
 
-                  if (aktivitas.isEmpty) ...[
+                  if (aktivitas.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(20),
-                      child: Text(
-                        'Belum ada aktivitas',
-                        style: TextStyle(color: Colors.black54),
-                      ),
-                    ),
-                  ] else ...[
+                      child: Text('Belum ada aktivitas'),
+                    )
+                  else
                     ...aktivitas.map((item) {
                       return activityCard(
                         icon: Icons.history,
@@ -237,7 +330,6 @@ class ProfilePage extends StatelessWidget {
                             '${item['deskripsi'] ?? '-'} • ${item['waktu'] ?? '-'}',
                       );
                     }).toList(),
-                  ],
 
                   const SizedBox(height: 24),
 
@@ -246,36 +338,24 @@ class ProfilePage extends StatelessWidget {
                   // ===============================
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (_) => const LogoutDialog(),
-                          );
-                        },
-                        icon: const Icon(Icons.logout, color: Colors.red),
-                        label: const Text(
-                          'Keluar',
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(
-                              color: Colors.redAccent, width: 1),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => const LogoutDialog(),
+                        );
+                      },
+                      icon: const Icon(Icons.logout, color: Colors.red),
+                      label: const Text(
+                        'Keluar',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.redAccent),
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 24),
                 ],
               ),
@@ -287,7 +367,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ===============================
-  // WIDGET STAT
+  // WIDGETS
   // ===============================
   static Widget statItem(
     IconData icon,
@@ -297,68 +377,68 @@ class ProfilePage extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Column(
         children: [
           Icon(icon, size: 28),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
-          ),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Colors.black54)),
         ],
       ),
     );
   }
 
-  // ===============================
-  // WIDGET AKTIVITAS
-  // ===============================
   static Widget activityCard({
     required IconData icon,
     required String title,
     required String subtitle,
-    VoidCallback? onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFFFF3CC),
-                child: Icon(icon, color: const Color(0xFFF6C709)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFFFFF3CC),
+              child: Icon(icon, color: const Color(0xFFF6C709)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: const TextStyle(color: Colors.black54)),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style:
-                          const TextStyle(color: Colors.black54, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
