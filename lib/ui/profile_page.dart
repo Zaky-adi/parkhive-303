@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'logout_dialog.dart';
+import 'hadiah_page.dart';
 
 class ProfilePage extends StatelessWidget {
   ProfilePage({Key? key}) : super(key: key);
@@ -192,6 +193,124 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  void showHadiahDialog(BuildContext context) {
+    int selectedTab = 0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Hadiah'),
+              content: SizedBox(
+                width: double.maxFinite,
+                height: 400,
+                child: Column(
+                  children: [
+                    // ===== TAB TEXT =====
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        hadiahTab('Daftar Hadiah', 0, selectedTab, setState),
+                        const SizedBox(width: 24),
+                        hadiahTab('Hadiah Saya', 1, selectedTab, setState),
+                      ],
+                    ),
+
+                    const Divider(),
+
+                    // ===== CONTENT =====
+                    Expanded(
+                      child: FutureBuilder<List<dynamic>>(
+                        future: selectedTab == 0
+                            ? _apiService.getHadiah()
+                            : _apiService.getHadiahSaya(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                                child: Text(snapshot.error.toString()));
+                          }
+
+                          final data = snapshot.data ?? [];
+
+                          if (data.isEmpty) {
+                            return Center(
+                              child: Text(
+                                selectedTab == 0
+                                    ? 'Belum ada hadiah'
+                                    : 'Belum punya hadiah',
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            itemCount: data.length,
+                            itemBuilder: (context, index) {
+                              final h = data[index];
+
+                              return ListTile(
+                                leading: const Icon(Icons.card_giftcard,
+                                    color: Colors.amber),
+                                title: Text(h['nama_hadiah'] ?? '-'),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(h['deskripsi_hadiah'] ?? '-'),
+                                    const SizedBox(height: 4),
+                                    Text('${h['biaya_poin']} poin'),
+                                    if (h['tanggal_kadaluarsa'] != null)
+                                      Text(
+                                        '⏰ ${h['tanggal_kadaluarsa']}',
+                                        style: const TextStyle(
+                                            fontSize: 12, color: Colors.green),
+                                      ),
+                                  ],
+                                ),
+
+                                // Tombol hanya di daftar hadiah
+                                trailing: selectedTab == 0
+                                    ? ElevatedButton(
+                                        onPressed: (h['stok_tersedia'] ?? 0) > 0
+                                            ? () async {
+                                                await _apiService.tukarHadiah(
+                                                  hadiahId: h['hadiah_id'],
+                                                  jumlah: 1,
+                                                );
+                                                Navigator.pop(context);
+                                              }
+                                            : null,
+                                        child: const Text('Tukar'),
+                                      )
+                                    : null,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Tutup'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   // ===============================
   // UI
   // ===============================
@@ -231,6 +350,7 @@ class ProfilePage extends StatelessWidget {
             final List aktivitas = data['aktivitas'] ?? [];
             final List laporans = data['laporan'] ?? [];
             final List badges = (data['badges'] is List) ? data['badges'] : [];
+            final List hadiah = (data['hadiah'] is List) ? data['hadiah'] : [];
 
             return SingleChildScrollView(
               child: Column(
@@ -300,6 +420,18 @@ class ProfilePage extends StatelessWidget {
                                 'Badge',
                                 onTap: () {
                                   showBadgeDialog(context, badges);
+                                },
+                              ),
+                              statItem(
+                                Icons.card_giftcard,
+                                'Hadiah',
+                                'Reward',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => HadiahPage()),
+                                  );
                                 },
                               ),
                             ],
@@ -441,6 +573,37 @@ class ProfilePage extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget hadiahTab(
+    String title,
+    int index,
+    int selectedTab,
+    Function setState,
+  ) {
+    final isActive = selectedTab == index;
+
+    return GestureDetector(
+      onTap: () => setState(() => selectedTab = index),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isActive ? Colors.black : Colors.grey,
+            ),
+          ),
+          if (isActive)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              height: 3,
+              width: 40,
+              color: const Color(0xFFF6C709),
+            ),
+        ],
       ),
     );
   }

@@ -215,4 +215,74 @@ class ApiService {
       throw Exception('Gagal memuat profile');
     }
   }
+
+  // ================= GET GENERIC =================
+  Future<Map<String, dynamic>> get(String endpoint) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Token tidak ditemukan');
+
+    final response = await http.get(
+      Uri.parse('$_baseUrl$endpoint'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    // Debug
+    print('GET $endpoint STATUS: ${response.statusCode}');
+    print('GET $endpoint BODY: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Gagal mengambil data dari $endpoint');
+    }
+  }
+
+  Future<List<dynamic>> getHadiah() async {
+    final response = await get('/hadiah');
+
+    if (response['status'] == 'success') {
+      return response['data'];
+    }
+    return [];
+  }
+
+  Future<List<dynamic>> getHadiahSaya() async {
+    final response = await get('/hadiah-saya');
+
+    if (response['status'] == 'success') {
+      return response['data'];
+    }
+    return [];
+  }
+
+  // ================= TUKAR HADIAH =================
+  Future<void> tukarHadiah({
+    required int hadiahId,
+    int jumlah = 1,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Token tidak ditemukan');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/hadiah/tukar/$hadiahId'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'hadiah_id': hadiahId,
+        'jumlah': jumlah,
+      }),
+    );
+
+    final body = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(body['message'] ?? 'Gagal menukar hadiah');
+    }
+  }
 }
