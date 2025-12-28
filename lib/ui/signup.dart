@@ -3,342 +3,283 @@ import 'signin.dart';
 import '../services/api_service.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
-
-  @override
-  State<SignUpPage> createState() => _SignUpPageState();
+enum AuthStep {
+  signUp,
+  forgot,
+  verify,
+  reset,
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class AuthFlowPage extends StatefulWidget {
+  const AuthFlowPage({super.key});
+
+  @override
+  State<AuthFlowPage> createState() => _AuthFlowPageState();
+}
+
+class _AuthFlowPageState extends State<AuthFlowPage> {
   final ApiService _apiService = ApiService();
+  AuthStep _step = AuthStep.signUp;
 
-  // 1. Tambahkan Controllers untuk semua input (termasuk No HP)
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _noHpController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  // ===== CONTROLLERS =====
+  final nameC = TextEditingController();
+  final emailC = TextEditingController();
+  final phoneC = TextEditingController();
+  final passC = TextEditingController();
+  final confirmC = TextEditingController();
 
-  bool _isValidName(String name) {
-    return RegExp(r'^[a-zA-Z\s]{3,}$').hasMatch(name.trim());
-  }
+  bool _loading = false;
 
-  bool _isValidEmail(String email) {
-    if (!RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      return false;
-    }
+  // ===== VALIDATION =====
+  bool _validName(String v) =>
+      RegExp(r'^[a-zA-Z\s]{3,}$').hasMatch(v.trim());
 
-    // blokir email sementara
-    final blockedDomains = [
-      'mailinator.com',
-      'tempmail.com',
-      '10minutemail.com'
-    ];
+  bool _validEmail(String v) =>
+      RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v);
 
-    return !blockedDomains.any(email.endsWith);
-  }
+  bool _validPhone(String v) =>
+      RegExp(r'^(8)[0-9]{8,11}$').hasMatch(v);
 
-  bool _isValidPhone(String phone) {
-    return RegExp(r'^(8)[0-9]{8,11}$').hasMatch(phone);
-  }
+  bool _strongPassword(String v) =>
+      RegExp(r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&]).{8,}$').hasMatch(v);
 
-  bool _isStrongPassword(String password) {
-    return RegExp(
-      r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$',
-    ).hasMatch(password);
-  }
-
-  void _showError(String message) {
+  void _error(String msg) {
     AwesomeDialog(
       context: context,
       dialogType: DialogType.warning,
-      animType: AnimType.scale,
-      title: 'Data Tidak Valid',
-      desc: message,
-      btnOkText: 'Perbaiki',
+      title: 'Perhatian',
+      desc: msg,
       btnOkOnPress: () {},
     ).show();
   }
 
-  Future<bool> _showDataWarning() async {
-    bool proceed = false;
-
-    await AwesomeDialog(
-      context: context,
-      dialogType: DialogType.warning,
-      animType: AnimType.scale,
-      title: 'Gunakan Data Asli',
-      desc: 'Gunakan email dan nomor HP aktif.\n'
-          'Akun dengan data palsu dapat diblokir permanen.',
-      btnCancelText: 'Batal',
-      btnOkText: 'Saya Mengerti',
-      btnOkOnPress: () => proceed = true,
-      btnCancelOnPress: () => proceed = false,
-    ).show();
-
-    return proceed;
-  }
-
-  // State untuk Loading dan Error
-  bool _isLoading = false;
-  String? _errorMessage;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _noHpController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  // --- Fungsi Logika Registrasi ---
-  void _handleRegister() async {
-    FocusScope.of(context).unfocus();
-
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final phone = _noHpController.text.trim();
-    final password = _passwordController.text;
-    final confirm = _confirmPasswordController.text;
-
-    // ================= VALIDASI =================
-    if (!_isValidName(name)) {
-      _showError("Nama harus minimal 3 huruf dan tanpa angka.");
+  // ===== REGISTER =====
+  void _register() async {
+    if (!_validName(nameC.text)) {
+      _error('Nama minimal 3 huruf');
+      return;
+    }
+    if (!_validEmail(emailC.text)) {
+      _error('Email tidak valid');
+      return;
+    }
+    if (!_validPhone(phoneC.text)) {
+      _error('Nomor HP tidak valid');
+      return;
+    }
+    if (!_strongPassword(passC.text)) {
+      _error('Password harus kuat');
+      return;
+    }
+    if (passC.text != confirmC.text) {
+      _error('Password tidak sama');
       return;
     }
 
-    if (!_isValidEmail(email)) {
-      _showError("Gunakan email aktif & valid (bukan email sementara).");
-      return;
-    }
-
-    if (!_isValidPhone(phone)) {
-      _showError("Nomor HP harus aktif dan berformat Indonesia.");
-      return;
-    }
-
-    if (!_isStrongPassword(password)) {
-      _showError(
-        "Password minimal 8 karakter dan harus mengandung:\n"
-        "• Huruf besar\n"
-        "• Angka\n"
-        "• Simbol (@#! dll)",
-      );
-      return;
-    }
-
-    if (password != confirm) {
-      _showError("Password dan konfirmasi tidak sama.");
-      return;
-    }
-
-    // ================= WARNING PSIKOLOGIS =================
-    final agree = await _showDataWarning();
-    if (!agree) return;
-
-    // ================= SUBMIT =================
     try {
-      setState(() => _isLoading = true);
+      setState(() => _loading = true);
 
       await _apiService.registerUser(
-        name,
-        email,
-        phone,
-        password,
-        confirm,
+        nameC.text,
+        emailC.text,
+        phoneC.text,
+        passC.text,
+        confirmC.text,
       );
 
-      setState(() => _isLoading = false);
+      setState(() => _loading = false);
 
-      // ✅ SUKSES
       AwesomeDialog(
         context: context,
         dialogType: DialogType.success,
-        animType: AnimType.scale,
-        title: 'Registrasi Berhasil',
-        desc:
-            'Akun berhasil dibuat.\nGunakan email & nomor HP asli untuk keamanan akun.',
+        title: 'Berhasil',
+        desc: 'Akun berhasil dibuat',
         btnOkText: 'Login',
         btnOkOnPress: () {
-          Navigator.of(context).pushReplacement(
+          Navigator.pushReplacement(
+            context,
             MaterialPageRoute(builder: (_) => const SignInPage()),
           );
         },
       ).show();
     } catch (e) {
-      setState(() => _isLoading = false);
-
-      AwesomeDialog(
-        context: context,
-        dialogType: DialogType.error,
-        animType: AnimType.scale,
-        title: 'Registrasi Gagal',
-        desc: e.toString().replaceFirst('Exception: ', ''),
-        btnOkOnPress: () {},
-      ).show();
+      setState(() => _loading = false);
+      _error(e.toString());
     }
   }
 
+  // ===== UI =====
   @override
   Widget build(BuildContext context) {
-    final gradient = const LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [Color(0xFFFFF4C8), Color(0xFFFFFFFF)],
-    );
-
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: gradient),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFFFF4C8), Colors.white],
+          ),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: SingleChildScrollView(
-          // Tambahkan SingleChildScrollView untuk menghindari overflow
-          child: Column(
-            children: [
-              const SizedBox(height: 80),
-              // Logo
-              Container(
-                height: 92,
-                width: 92,
-                decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Center(
-                    child: Text('P',
-                        style: TextStyle(color: Colors.white, fontSize: 44))),
-              ),
-              const SizedBox(height: 14),
-              const Text('ParkHive',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 18),
-              const Text('Sign Up',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 20),
-
-              // --- Kotak Form ---
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: const [
-                    BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 8,
-                        offset: Offset(0, 4))
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    // Input Nama
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                          labelText: 'Nama Lengkap',
-                          hintText: 'Contoh:Zaky Adi'),
-                    ),
-                    const SizedBox(height: 12),
-                    // Input Email
-                    TextField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                          labelText: 'Email',
-                          hintText: 'Contoh:test@gmail.com'),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 12),
-                    // Input Nomor HP
-                    TextField(
-                      controller: _noHpController,
-                      decoration: const InputDecoration(
-                          labelText: 'Nomor HP', hintText: 'Contoh:8123456...'),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 12),
-                    // Input Password
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'Min 8 karakter, huruf besar, angka & simbol',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Input Confirm Password
-                    TextField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                          labelText: 'Confirm Password',
-                          hintText: 'Konfirmasi Sandi'),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Pesan Error
-                    if (_errorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: Text(
-                          _errorMessage!,
-                          style:
-                              const TextStyle(color: Colors.red, fontSize: 13),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-
-                    // Tombol Sign Up
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        // Hubungkan ke _handleRegister
-                        onPressed: _isLoading ? null : _handleRegister,
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 14)),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2),
-                              )
-                            : const Text('Sign Up',
-                                style: TextStyle(
-                                    fontSize: 16, color: Colors.white)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Memberikan ruang di bawah form
-              const SizedBox(height: 50),
-
-              // Tombol Sign In
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const SignInPage()));
-                },
-                child: const Text.rich(TextSpan(
-                    text: 'Already have an account? ',
-                    children: [
-                      TextSpan(
-                          text: 'Sign In',
-                          style: TextStyle(fontWeight: FontWeight.w700))
-                    ])),
-              ),
-              const SizedBox(height: 18),
-            ],
+        child: Center(
+          child: SingleChildScrollView(
+            child: _card(
+              child: _buildStep(),
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildStep() {
+    switch (_step) {
+      case AuthStep.signUp:
+        return Column(
+          children: [
+            _title('Sign Up'),
+            _input(nameC, 'Nama Lengkap'),
+            _space(),
+            _input(emailC, 'Email'),
+            _space(),
+            _input(phoneC, 'Nomor HP'),
+            _space(),
+            _input(passC, 'Password', obscure: true),
+            _space(),
+            _input(confirmC, 'Confirm Password', obscure: true),
+            const SizedBox(height: 18),
+            _button('Sign Up', _register),
+            _textButton(
+              'Already have an account? Sign In',
+              () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const SignInPage()),
+              ),
+            ),
+            _textButton(
+              'Forgot password?',
+              () => setState(() => _step = AuthStep.forgot),
+            ),
+          ],
+        );
+
+      case AuthStep.forgot:
+        return Column(
+          children: [
+            _title('Forgot password?'),
+            _input(phoneC, 'Nomor HP'),
+            const SizedBox(height: 18),
+            _button('Kirim Kode Verifikasi', () {
+              setState(() => _step = AuthStep.verify);
+            }),
+          ],
+        );
+
+      case AuthStep.verify:
+        return Column(
+          children: [
+            _title('Verification Code'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(
+                5,
+                (_) => Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            _button('Verify', () {
+              setState(() => _step = AuthStep.reset);
+            }),
+          ],
+        );
+
+      case AuthStep.reset:
+        return Column(
+          children: [
+            _title('Create New Password'),
+            _input(passC, 'New Password', obscure: true),
+            _space(),
+            _input(confirmC, 'Confirm Password', obscure: true),
+            const SizedBox(height: 18),
+            _button('Confirm', () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const SignInPage()),
+              );
+            }),
+          ],
+        );
+    }
+  }
+
+  // ===== REUSABLE UI =====
+  Widget _title(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 18),
+        child: Text(
+          text,
+          style: const TextStyle(
+              fontSize: 26, fontWeight: FontWeight.w700),
+        ),
+      );
+
+  Widget _input(TextEditingController c, String label,
+      {bool obscure = false}) {
+    return TextField(
+      controller: c,
+      obscureText: obscure,
+      decoration: InputDecoration(
+        labelText: label,
+        border:
+            OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  Widget _button(String text, VoidCallback onTap) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _loading ? null : onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.black,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        child: _loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2),
+              )
+            : Text(text,
+                style:
+                    const TextStyle(color: Colors.white, fontSize: 16)),
+      ),
+    );
+  }
+
+  Widget _textButton(String text, VoidCallback onTap) {
+    return TextButton(onPressed: onTap, child: Text(text));
+  }
+
+  Widget _space() => const SizedBox(height: 12);
+
+  Widget _card({required Widget child}) => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(color: Colors.black12, blurRadius: 8)
+          ],
+        ),
+        child: child,
+      );
 }
