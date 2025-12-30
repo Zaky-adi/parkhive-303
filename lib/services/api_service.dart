@@ -285,4 +285,46 @@ class ApiService {
       throw Exception(body['message'] ?? 'Gagal menukar hadiah');
     }
   }
+
+  Future<void> claimBadge(int badgeId) async {
+    final response = await post('/badges/$badgeId/claim');
+
+    if (response['status'] != 'success') {
+      throw Exception(response['message'] ?? 'Gagal klaim badge');
+    }
+  }
+
+  Future<void> claimLaporanPoin(int laporanId) async {
+    final response = await post('/laporan/$laporanId/claim-poin');
+
+    if (response['status'] != 'success') {
+      throw Exception(response['message'] ?? 'Gagal klaim poin laporan');
+    }
+  }
+
+  // ================= HTTP HELPER =================
+
+  Future<Map<String, dynamic>> post(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Token tidak ditemukan');
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl$endpoint'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body ?? {}),
+    );
+
+    if (response.body.trim().startsWith('<')) {
+      throw Exception('Server mengembalikan HTML');
+    }
+
+    return jsonDecode(response.body);
+  }
 }

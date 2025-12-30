@@ -74,6 +74,32 @@ class ProfilePage extends StatelessWidget {
                           Text(l['tanggal_laporan'] ?? '-'),
                         ],
                       ),
+                      trailing: l['status'] == 'Terverifikasi' &&
+                              l['poin_claimed'] == 0
+                          ? ElevatedButton(
+                              onPressed: () async {
+                                await _apiService.claimLaporanPoin(l['id']);
+
+                                Navigator.pop(context);
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('⭐ Poin berhasil diklaim'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                              child: const Text('Klaim Poin'),
+                            )
+                          : l['poin_claimed'] == 1
+                              ? const Text(
+                                  'Poin diklaim',
+                                  style: TextStyle(
+                                    color: Colors.green,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                )
+                              : null,
                     );
                   },
                 ),
@@ -179,6 +205,20 @@ class ProfilePage extends StatelessWidget {
                       subtitle: Text(
                         'Syarat poin: ${badge['syarat_poin'] ?? 0}',
                       ),
+                      trailing: badge['is_claimed'] == 0
+                          ? ElevatedButton(
+                              onPressed: () {
+                                showConfirmClaimBadge(context, badge);
+                              },
+                              child: const Text('Klaim'),
+                            )
+                          : const Text(
+                              'Diklaim',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     );
                   },
                 ),
@@ -308,6 +348,45 @@ class ProfilePage extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void showConfirmClaimBadge(
+    BuildContext context,
+    Map badge,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Klaim Badge'),
+        content: Text(
+          'Klaim badge "${badge['nama_badge']}"?\n'
+          'Poin akan ditambahkan setelah badge diklaim.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // tutup dialog konfirmasi
+
+              await _apiService.claimBadge(badge['badge_id']);
+
+              Navigator.pop(context); // tutup dialog badge
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🏆 Badge berhasil diklaim, poin bertambah'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: const Text('Klaim'),
+          ),
+        ],
+      ),
     );
   }
 

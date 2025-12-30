@@ -15,6 +15,8 @@ class _HadiahPageState extends State<HadiahPage> {
   /// 1 = hadiah saya
   int selectedTab = 0;
 
+  List<int> claimedHadiahIds = [];
+
   // ================= EXPIRED CHECK =================
   bool isExpired(String? date) {
     if (date == null) return false;
@@ -51,22 +53,28 @@ class _HadiahPageState extends State<HadiahPage> {
 
           // ================= CONTENT =================
           Expanded(
-            child: FutureBuilder<List<dynamic>>(
-              future: selectedTab == 0
-                  ? _apiService.getHadiah()
-                  : _apiService.getHadiahSaya(),
+            child: FutureBuilder(
+              future: Future.wait([
+                _apiService.getHadiah(),
+                _apiService.getHadiahSaya(),
+              ]),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 if (snapshot.hasError) {
-                  return Center(
-                    child: Text('Terjadi kesalahan: ${snapshot.error}'),
-                  );
+                  return Center(child: Text(snapshot.error.toString()));
                 }
 
-                final data = snapshot.data ?? [];
+                final allHadiah = snapshot.data![0] as List<dynamic>;
+                final hadiahSaya = snapshot.data![1] as List<dynamic>;
+
+                // simpan hadiah yang sudah diklaim
+                claimedHadiahIds =
+                    hadiahSaya.map<int>((h) => h['hadiah_id'] as int).toList();
+
+                final data = selectedTab == 0 ? allHadiah : hadiahSaya;
 
                 if (data.isEmpty) {
                   return Center(
@@ -84,6 +92,7 @@ class _HadiahPageState extends State<HadiahPage> {
                   itemBuilder: (context, index) {
                     final h = data[index];
                     final expired = isExpired(h['tanggal_kadaluarsa']);
+                    final isClaimed = claimedHadiahIds.contains(h['hadiah_id']);
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 12),
@@ -122,31 +131,55 @@ class _HadiahPageState extends State<HadiahPage> {
                             ),
                             if (h['tanggal_kadaluarsa'] != null) ...[
                               const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Icon(
-                                    isExpired(h['tanggal_kadaluarsa'])
-                                        ? Icons.cancel
-                                        : Icons.schedule,
-                                    size: 16,
-                                    color: isExpired(h['tanggal_kadaluarsa'])
-                                        ? Colors.red
-                                        : Colors.green,
+
+                              // ===== KHUSUS HADIAH SAYA (TENGAH) =====
+                              if (selectedTab == 1)
+                                Center(
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isExpired(h['tanggal_kadaluarsa'])
+                                            ? Icons.cancel
+                                            : Icons.schedule,
+                                        size: 16,
+                                        color:
+                                            isExpired(h['tanggal_kadaluarsa'])
+                                                ? Colors.red
+                                                : Colors.green,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isExpired(h['tanggal_kadaluarsa'])
+                                            ? 'Kadaluarsa (${h['tanggal_kadaluarsa']})'
+                                            : 'Berlaku sampai ${h['tanggal_kadaluarsa']}',
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    isExpired(h['tanggal_kadaluarsa'])
-                                        ? 'Kadaluarsa (${h['tanggal_kadaluarsa']})'
-                                        : 'Berlaku sampai ${h['tanggal_kadaluarsa']}',
-                                    style: TextStyle(
-                                      color: isExpired(h['tanggal_kadaluarsa'])
-                                          ? Colors.red
-                                          : Colors.green,
-                                      fontWeight: FontWeight.w600,
+                                )
+
+                              // ===== DAFTAR HADIAH (KIRI) =====
+                              else
+                                Row(
+                                  children: [
+                                    Icon(
+                                      expired ? Icons.cancel : Icons.schedule,
+                                      size: 16,
+                                      color:
+                                          expired ? Colors.red : Colors.green,
                                     ),
-                                  ),
-                                ],
-                              ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      expired
+                                          ? 'Kadaluarsa (${h['tanggal_kadaluarsa']})'
+                                          : 'Berlaku sampai ${h['tanggal_kadaluarsa']}',
+                                      style: TextStyle(
+                                        color:
+                                            expired ? Colors.red : Colors.green,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                             ]
                           ],
                         ),
@@ -154,42 +187,44 @@ class _HadiahPageState extends State<HadiahPage> {
                         // ================= TOMBOL TUKAR =================
                         trailing: selectedTab == 0
                             ? ElevatedButton(
-                                onPressed:
-                                    (h['stok_tersedia'] ?? 0) > 0 && !expired
-                                        ? () async {
-                                            try {
-                                              await _apiService.tukarHadiah(
-                                                hadiahId: h['hadiah_id'],
-                                                jumlah: 1,
-                                              );
+                                onPressed: (!isClaimed &&
+                                        (h['stok_tersedia'] ?? 0) > 0 &&
+                                        !expired)
+                                    ? () async {
+                                        await _apiService.tukarHadiah(
+                                          hadiahId: h['hadiah_id'],
+                                          jumlah: 1,
+                                        );
 
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                      '🎉 Hadiah berhasil ditukar'),
-                                                  backgroundColor: Colors.green,
-                                                ),
-                                              );
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                '🎉 Hadiah berhasil diklaim'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
 
-                                              setState(() {});
-                                            } catch (e) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: Text(e.toString()),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        : null,
+                                        setState(() {});
+                                      }
+                                    : null,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF6C709),
+                                  backgroundColor: isClaimed
+                                      ? Colors.grey[300]
+                                      : const Color(0xFFF6C709),
                                 ),
                                 child: Text(
-                                  expired ? 'Kadaluarsa' : 'Tukar',
-                                  style: const TextStyle(color: Colors.black),
+                                  isClaimed
+                                      ? 'Diklaim'
+                                      : expired
+                                          ? 'Kadaluarsa'
+                                          : 'Tukar',
+                                  style: TextStyle(
+                                    color: isClaimed
+                                        ? Colors.black54
+                                        : Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               )
                             : null,
