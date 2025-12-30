@@ -4,7 +4,7 @@ import 'logout_dialog.dart';
 import 'hadiah_page.dart';
 
 class ProfilePage extends StatelessWidget {
-  ProfilePage({Key? key}) : super(key: key);
+  ProfilePage({super.key});
 
   final ApiService _apiService = ApiService();
 
@@ -13,7 +13,6 @@ class ProfilePage extends StatelessWidget {
   // ===============================
   Future<Map<String, dynamic>> fetchProfile() async {
     final response = await _apiService.getProfile();
-
     if (response.containsKey('data')) {
       return response['data'];
     }
@@ -21,13 +20,8 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ===============================
-  // HELPER FORMAT
+  // HELPER
   // ===============================
-  String formatTipeLaporan(String? tipe) {
-    if (tipe == null) return '-';
-    return tipe.replaceAll('_', ' ');
-  }
-
   Color statusColor(String? status) {
     switch (status) {
       case 'Terverifikasi':
@@ -42,7 +36,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ===============================
-  // DIALOG LAPORAN
+  // DIALOG
   // ===============================
   void showLaporanDialog(BuildContext context, List laporans) {
     showDialog(
@@ -122,19 +116,11 @@ class ProfilePage extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.star, color: Colors.amber, size: 48),
+            const Icon(Icons.star, size: 48, color: Colors.amber),
             const SizedBox(height: 12),
             Text(
               '$poin Poin',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Poin didapat dari aktivitas, laporan, dan verifikasi.',
-              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -142,37 +128,42 @@ class ProfilePage extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Tutup'),
-          ),
+          )
         ],
       ),
     );
   }
 
-  void showBadgeDetail(BuildContext context, Map badge) {
+  void showLaporanDialog(BuildContext context, List laporans) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(badge['nama'] ?? 'Badge'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.workspace_premium,
-              size: 48,
-              color: Colors.amber,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              badge['deskripsi'] ?? '-',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+        title: const Text('Laporan Saya'),
+        content: laporans.isEmpty
+            ? const Text('Belum ada laporan')
+            : SizedBox(
+                width: double.maxFinite,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: laporans.length,
+                  itemBuilder: (_, i) {
+                    final l = laporans[i];
+                    return ListTile(
+                      leading: const Icon(Icons.local_parking),
+                      title: Text(l['tipe_laporan'] ?? '-'),
+                      subtitle: Text(
+                        l['status'] ?? '-',
+                        style: TextStyle(color: statusColor(l['status'])),
+                      ),
+                    );
+                  },
+                ),
+              ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Tutup'),
-          ),
+          )
         ],
       ),
     );
@@ -184,15 +175,14 @@ class ProfilePage extends StatelessWidget {
       builder: (_) => AlertDialog(
         title: const Text('Badge Saya'),
         content: badges.isEmpty
-            ? const Text('Kamu belum memiliki badge')
+            ? const Text('Belum ada badge')
             : SizedBox(
                 width: double.maxFinite,
-                child: ListView.separated(
+                child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: badges.length,
-                  separatorBuilder: (_, __) => const Divider(),
-                  itemBuilder: (context, index) {
-                    final badge = badges[index];
+                  itemBuilder: (_, i) {
+                    final b = badges[i];
                     return ListTile(
                       leading: const Icon(
                         Icons.workspace_premium,
@@ -227,7 +217,7 @@ class ProfilePage extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Tutup'),
-          ),
+          )
         ],
       ),
     );
@@ -406,12 +396,7 @@ class ProfilePage extends StatelessWidget {
             }
 
             if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  'Terjadi kesalahan:\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              );
+              return Center(child: Text(snapshot.error.toString()));
             }
 
             if (!snapshot.hasData) {
@@ -419,53 +404,44 @@ class ProfilePage extends StatelessWidget {
             }
 
             final data = snapshot.data!;
-
             final String nama = data['nama'] ?? '-';
             final String email = data['email'] ?? '-';
-            final int totalPoin = data['total_poin'] ?? 0;
-            final int totalLaporan = data['jumlah_laporan'] ?? 0;
-            final int totalBadge = data['jumlah_badge'] ?? 0;
+            final int poin = data['total_poin'] ?? 0;
+            final int laporan = data['jumlah_laporan'] ?? 0;
+            final int badge = data['jumlah_badge'] ?? 0;
 
             final List aktivitas = data['aktivitas'] ?? [];
             final List laporans = data['laporan'] ?? [];
-            final List badges = (data['badges'] is List) ? data['badges'] : [];
-            final List hadiah = (data['hadiah'] is List) ? data['hadiah'] : [];
+            final List badges = data['badges'] ?? [];
 
             return SingleChildScrollView(
               child: Column(
                 children: [
-                  // ===============================
-                  // HEADER PROFIL
-                  // ===============================
+                  // HEADER
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 30),
                     decoration: const BoxDecoration(
                       color: Color(0xFFF6C709),
-                      borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(24),
-                      ),
+                      borderRadius:
+                          BorderRadius.vertical(bottom: Radius.circular(24)),
                     ),
                     child: Column(
                       children: [
                         const Text(
                           'Profil',
                           style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                          ),
+                              fontSize: 22, fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 20),
                         const CircleAvatar(
                           radius: 45,
                           backgroundImage:
-                              AssetImage("assets/images/profil.jpeg"),
+                              AssetImage('assets/images/profil.jpeg'),
                         ),
-                        const SizedBox(height: 14),
-                        Text(
-                          nama,
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700),
-                        ),
+                        const SizedBox(height: 12),
+                        Text(nama,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700)),
                         Text(email),
                         const SizedBox(height: 20),
                         Container(
@@ -478,41 +454,23 @@ class ProfilePage extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
+                              statItem(Icons.star, '$poin', 'Poin',
+                                  () => showPoinDialog(context, poin)),
+                              statItem(Icons.location_on, '$laporan', 'Laporan',
+                                  () => showLaporanDialog(context, laporans)),
                               statItem(
-                                Icons.star,
-                                '$totalPoin',
-                                'Poin',
-                                onTap: () {
-                                  showPoinDialog(context, totalPoin);
-                                },
-                              ),
-                              statItem(
-                                Icons.location_on,
-                                '$totalLaporan',
-                                'Laporan',
-                                onTap: () =>
-                                    showLaporanDialog(context, laporans),
-                              ),
-                              statItem(
-                                Icons.workspace_premium,
-                                '$totalBadge',
-                                'Badge',
-                                onTap: () {
-                                  showBadgeDialog(context, badges);
-                                },
-                              ),
-                              statItem(
-                                Icons.card_giftcard,
-                                'Hadiah',
-                                'Reward',
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => HadiahPage()),
-                                  );
-                                },
-                              ),
+                                  Icons.workspace_premium,
+                                  '$badge',
+                                  'Badge',
+                                  () => showBadgeDialog(context, badges)),
+                              statItem(Icons.card_giftcard, 'Hadiah', 'Reward',
+                                  () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => HadiahPage()),
+                                );
+                              }),
                             ],
                           ),
                         ),
@@ -520,54 +478,42 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
-                  // ===============================
-                  // AKTIVITAS TERAKHIR
-                  // ===============================
+                  // AKTIVITAS
                   sectionTitle('Aktivitas terakhir'),
-
                   if (aktivitas.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(20),
                       child: Text('Belum ada aktivitas'),
                     )
                   else
-                    ...aktivitas.map((item) {
+                    ...aktivitas.map((a) {
                       return activityCard(
-                        icon: Icons.history,
-                        title: item['judul'] ?? 'Aktivitas',
+                        title: a['judul'] ?? '-',
                         subtitle:
-                            '${item['deskripsi'] ?? '-'} • ${item['waktu'] ?? '-'}',
+                            '${a['deskripsi'] ?? '-'} • ${a['waktu'] ?? '-'}',
                       );
-                    }).toList(),
+                    }),
 
                   const SizedBox(height: 24),
 
-                  // ===============================
                   // LOGOUT
-                  // ===============================
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: ElevatedButton.icon(
+                    child: OutlinedButton.icon(
                       onPressed: () {
                         showDialog(
                           context: context,
                           builder: (_) => const LogoutDialog(),
                         );
                       },
-                      icon: const Icon(Icons.logout, color: Colors.red),
-                      label: const Text(
-                        'Keluar',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.redAccent),
-                      ),
+                      icon: const Icon(Icons.logout, color: Colors.redAccent),
+                      label: const Text('Keluar',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
                 ],
               ),
             );
@@ -578,23 +524,19 @@ class ProfilePage extends StatelessWidget {
   }
 
   // ===============================
-  // WIDGETS
+  // WIDGET KECIL
   // ===============================
   static Widget statItem(
-    IconData icon,
-    String value,
-    String label, {
-    VoidCallback? onTap,
-  }) {
+      IconData icon, String value, String label, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       child: Column(
         children: [
-          Icon(icon, size: 28),
+          Icon(icon),
           const SizedBox(height: 6),
           Text(value,
               style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           Text(label,
               style: const TextStyle(fontSize: 12, color: Colors.black54)),
         ],
@@ -602,11 +544,19 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  static Widget activityCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  static Widget sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  static Widget activityCard(
+      {required String title, required String subtitle}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
       child: Container(
@@ -617,10 +567,9 @@ class ProfilePage extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: const Color(0xFFFFF3CC),
-              child: Icon(icon, color: const Color(0xFFF6C709)),
+            const CircleAvatar(
+              backgroundColor: Color(0xFFFFF3CC),
+              child: Icon(Icons.history, color: Color(0xFFF6C709)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -636,53 +585,6 @@ class ProfilePage extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  static Widget sectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget hadiahTab(
-    String title,
-    int index,
-    int selectedTab,
-    Function setState,
-  ) {
-    final isActive = selectedTab == index;
-
-    return GestureDetector(
-      onTap: () => setState(() => selectedTab = index),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: isActive ? Colors.black : Colors.grey,
-            ),
-          ),
-          if (isActive)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              height: 3,
-              width: 40,
-              color: const Color(0xFFF6C709),
-            ),
-        ],
       ),
     );
   }

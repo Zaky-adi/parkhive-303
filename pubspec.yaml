@@ -1,36 +1,44 @@
 name: parkhive_app
 description: Starter Flutter app for ParkHive (Login/Register)
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.0+1
 
 environment:
-  sdk: ">=2.18.0 <3.0.0"
+  sdk: ">=3.2.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
+  # UI & Dialog
   awesome_dialog: ^3.2.1
-  flutter_lints: ^3.0.0
 
-  # UI & ikon
-  google_fonts: ^5.0.0
-  flutter_svg: ^2.0.0
+  # Fonts & Icons
+  google_fonts: ^6.1.0
+  flutter_svg: ^2.0.9
   font_awesome_flutter: ^10.7.0
 
-  # Networking & data
-  http: ^1.6.0
-  shared_preferences: ^2.2.0
+  # Networking & Local Storage
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
 
-  # Lokasi & izin
-  geolocator: ^10.1.0
+  # Location & Permission
+  geolocator: ^13.0.1
   geocoding: ^3.0.0
   permission_handler: ^11.3.1
 
-  # Media picker
-  image_picker: ^1.0.7
+  # Media
+  image_picker: ^1.1.2
+
+  # Map
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
