@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/area_parkir_model.dart';
+import '../ui/parking_card_model.dart';
 
 class ApiService {
   static const String _baseUrl =
@@ -326,5 +327,21 @@ class ApiService {
     }
 
     return jsonDecode(response.body);
+  }
+
+  Future<List<ParkingCardModel>> fetchParkingCards() async {
+    final response = await http.get(
+      Uri.parse(
+          'https://trpl-303-park-hive.vercel.app/public/api/mobile/area-parkir'),
+    );
+
+    if (response.statusCode == 200) {
+      final jsonData = json.decode(response.body);
+      return (jsonData['data'] as List)
+          .map((e) => ParkingCardModel.fromJson(e))
+          .toList();
+    } else {
+      throw Exception('Gagal load data parkir');
+    }
   }
 }

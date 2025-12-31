@@ -17,12 +17,48 @@ class _ReportPageState extends State<ReportPage> {
   final ApiService _apiService = ApiService();
   final ImagePicker _picker = ImagePicker();
 
+  String _mapTipeLaporanToApi(String value) {
+    switch (value) {
+      case 'Koreksi_Data':
+        return 'Koreksi_Data';
+      case 'Update_Status':
+        return 'Update_Status';
+      case 'Parkir_Ilegal':
+        return 'Parkir_Ilegal';
+      default:
+        throw Exception('Tipe laporan tidak valid');
+    }
+  }
+
+  Future<void> _loadAreaParkir() async {
+    try {
+      final areas = await _apiService.fetchAreaParkir();
+
+      setState(() {
+        _areaParkirList = areas
+            .map((e) => {
+                  'id': e.areaId,
+                  'nama': e.namaArea,
+                })
+            .toList();
+        _loadingArea = false;
+      });
+    } catch (e) {
+      setState(() => _loadingArea = false);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memuat area parkir'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // ================= DROPDOWN DATA =================
-  final Map<int, String> _lokasiParkirMap = {
-    1: "Parkir Gedung Utama",
-    2: "Parkir Tower A",
-    3: "Parkir Technopreneur",
-  };
+  List<Map<String, dynamic>> _areaParkirList = [];
+  bool _loadingArea = true;
 
   int? _selectedLokasiId;
   String? _selectedType;
@@ -33,19 +69,25 @@ class _ReportPageState extends State<ReportPage> {
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _slotController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAreaParkir();
+  }
+
   // ================= IMAGE =================
   Future<void> _pickImage() async {
     try {
-      final XFile? pickedFile = (!kIsWeb &&
-              (Platform.isAndroid || Platform.isIOS))
-          ? await _picker.pickImage(
-              source: ImageSource.camera,
-              imageQuality: 80,
-            )
-          : await _picker.pickImage(
-              source: ImageSource.gallery,
-              imageQuality: 80,
-            );
+      final XFile? pickedFile =
+          (!kIsWeb && (Platform.isAndroid || Platform.isIOS))
+              ? await _picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                )
+              : await _picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                );
 
       if (pickedFile == null) return;
 
@@ -81,8 +123,8 @@ class _ReportPageState extends State<ReportPage> {
       setState(() => _isSubmitting = true);
 
       await _apiService.kirimLaporan(
-        areaId: _selectedLokasiId!, // ✅ INT
-        tipeLaporan: _selectedType!,
+        areaId: _selectedLokasiId!,
+        tipeLaporan: _mapTipeLaporanToApi(_selectedType!), // 🔥 FIX UTAMA
         detailLaporan: _noteController.text,
         foto: _imageFile,
       );
@@ -139,7 +181,6 @@ class _ReportPageState extends State<ReportPage> {
           children: [
             _jenisLaporanCard(),
             const SizedBox(height: 20),
-
             _label("Lokasi parkir*"),
             DropdownButtonFormField<int>(
               value: _selectedLokasiId,
@@ -147,17 +188,21 @@ class _ReportPageState extends State<ReportPage> {
                 "Pilih lokasi parkir",
                 icon: Icons.location_on_outlined,
               ),
-              items: _lokasiParkirMap.entries
+              items: _areaParkirList
                   .map(
-                    (e) => DropdownMenuItem<int>(
-                      value: e.key,
-                      child: Text(e.value),
+                    (area) => DropdownMenuItem<int>(
+                      value: area['id'],
+                      child: Text(area['nama']),
                     ),
                   )
                   .toList(),
               onChanged: (v) => setState(() => _selectedLokasiId = v),
             ),
-
+            if (_loadingArea)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: CircularProgressIndicator(),
+              ),
             if (_selectedType == "UPDATE") ...[
               const SizedBox(height: 16),
               _label("Slot tersedia*"),
@@ -167,7 +212,6 @@ class _ReportPageState extends State<ReportPage> {
                 decoration: _inputDecoration("Jumlah slot tersedia"),
               ),
             ],
-
             const SizedBox(height: 16),
             _label("Catatan tambahan"),
             TextField(
@@ -177,7 +221,6 @@ class _ReportPageState extends State<ReportPage> {
                 "Contoh: Parkir ilegal di dekat trotoar parkiran TA pada pagi hari.",
               ),
             ),
-
             const SizedBox(height: 20),
             _label("Foto (opsional)"),
             GestureDetector(
@@ -209,10 +252,8 @@ class _ReportPageState extends State<ReportPage> {
                       ),
               ),
             ),
-
             const SizedBox(height: 20),
             _tipsCard(),
-
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -269,9 +310,9 @@ class _ReportPageState extends State<ReportPage> {
               "Jenis laporan",
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
-            _radio("BARU", "Spot parkir baru", "+10 poin"),
-            _radio("UPDATE", "Update ketersediaan", "+5 poin"),
-            _radio("PENUH", "Laporkan spot penuh", "+5 poin"),
+            _radio("Parkir_Ilegal", "Parkir Ilegal", "+10 poin"),
+            _radio("Update_Status", "Update ketersediaan", "+5 poin"),
+            _radio("Koreksi_Data", "Laporkan spot penuh", "+5 poin"),
           ],
         ),
       ),
@@ -287,8 +328,7 @@ class _ReportPageState extends State<ReportPage> {
       title: Row(
         children: [
           Expanded(child: Text(title)),
-          Text(point,
-              style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(point, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
     );

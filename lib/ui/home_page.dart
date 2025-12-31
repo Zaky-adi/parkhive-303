@@ -6,6 +6,8 @@ import 'achive_page.dart';
 import 'theme.dart';
 import 'notification_page.dart';
 import 'report_page.dart';
+import '../ui/parking_card_model.dart';
+import '../services/api_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -91,6 +93,14 @@ class _HomeContentState extends State<HomeContent> {
   final int challengeTarget = 2;
   bool rewardClaimed = false;
 
+  late Future<List<ParkingCardModel>> _parkingFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _parkingFuture = ApiService().fetchParkingCards();
+  }
+
   void _onReport(BuildContext context) {
     if (challengeProgress < challengeTarget) {
       setState(() {
@@ -129,34 +139,38 @@ class _HomeContentState extends State<HomeContent> {
             const SizedBox(height: 16),
             _challengeCard(progressRatio),
             const SizedBox(height: 24),
-
             const Text(
               'Spot parkir kampus',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 12),
+            FutureBuilder<List<ParkingCardModel>>(
+              future: _parkingFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            _parkingCard(
-              context,
-              title: 'Parkir Gedung A',
-              used: 10,
-              total: 20,
-            ),
-            const SizedBox(height: 12),
+                if (snapshot.hasError) {
+                  return Text(snapshot.error.toString());
+                }
 
-            _parkingCard(
-              context,
-              title: 'Parkir Gedung B',
-              used: 18,
-              total: 20,
-            ),
-            const SizedBox(height: 12),
+                final parkings = snapshot.data!;
 
-            _parkingCard(
-              context,
-              title: 'Parkir Gedung C',
-              used: 14,
-              total: 20,
+                return Column(
+                  children: parkings.map((p) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _parkingCard(
+                        context,
+                        title: p.namaArea,
+                        used: p.used,
+                        total: p.totalSlot,
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
             ),
             const SizedBox(height: 100),
           ],
@@ -293,7 +307,6 @@ class _HomeContentState extends State<HomeContent> {
             child: const Icon(Icons.location_on_outlined),
           ),
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,10 +344,8 @@ class _HomeContentState extends State<HomeContent> {
               ],
             ),
           ),
-
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: available ? Colors.green : Colors.red,
               borderRadius: BorderRadius.circular(12),
