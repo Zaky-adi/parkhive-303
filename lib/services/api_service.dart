@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/area_parkir_model.dart';
 import '../ui/parking_card_model.dart';
+import '../models/parking_spot.dart';
 
 class ApiService {
   static const String _baseUrl =
@@ -343,5 +344,46 @@ class ApiService {
     } else {
       throw Exception('Gagal load data parkir');
     }
+  }
+
+  // ================= MAP PARKIR (FLUTTER MAP) =================
+  Future<List<ParkingSpot>> fetchParkingMapSpots({
+    String availability = 'semua',
+    Set<String>? areas,
+  }) async {
+    final queryParams = {
+      'availability': availability,
+      if (areas != null && areas.isNotEmpty) 'areas': areas.join(','),
+    };
+
+    final uri = Uri.parse('$_baseUrl/parking-map')
+        .replace(queryParameters: queryParams);
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Accept': 'application/json',
+        // 🔐 kalau endpoint kamu pakai auth, aktifkan ini
+        // 'Authorization': 'Bearer ${await getToken()}',
+      },
+    );
+
+    // DEBUG
+    print('MAP STATUS: ${response.statusCode}');
+    print('MAP BODY: ${response.body}');
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat data peta parkir');
+    }
+
+    if (response.body.trim().startsWith('<')) {
+      throw Exception('Server mengembalikan HTML (API error)');
+    }
+
+    final jsonData = jsonDecode(response.body);
+
+    return (jsonData['data'] as List)
+        .map((e) => ParkingSpot.fromJson(e))
+        .toList();
   }
 }

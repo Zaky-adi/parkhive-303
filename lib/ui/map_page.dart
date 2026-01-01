@@ -2,22 +2,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-
-class ParkingSpot {
-  final String name;
-  final double lat;
-  final double lng;
-  final int usedSlots;
-  final int totalSlots;
-
-  const ParkingSpot({
-    required this.name,
-    required this.lat,
-    required this.lng,
-    required this.usedSlots,
-    required this.totalSlots,
-  });
-}
+import '../services/api_service.dart';
+import '../models/parking_spot.dart';
 
 class MapPage extends StatefulWidget {
   static const String routeName = '/map';
@@ -31,29 +17,32 @@ class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
   final LatLng _center = const LatLng(1.1191557, 104.0483);
 
-  final List<ParkingSpot> _allSpots = const [
-    ParkingSpot(
-      name: 'Parkiran GU',
-      lat: 1.119257440362752,
-      lng: 104.0488456936243,
-      usedSlots: 13,
-      totalSlots: 20,
-    ),
-    ParkingSpot(
-      name: 'Parkiran TA',
-      lat: 1.1189901346605966,
-      lng: 104.047642933095,
-      usedSlots: 14,
-      totalSlots: 20,
-    ),
-    ParkingSpot(
-      name: 'Parkiran Tekno',
-      lat: 1.1191557266114684,
-      lng: 104.04811173177801,
-      usedSlots: 18,
-      totalSlots: 20,
-    ),
-  ];
+  final ApiService _apiService = ApiService();
+  List<ParkingSpot> _allSpots = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadParkingMap();
+  }
+
+  Future<void> _loadParkingMap() async {
+    try {
+      final data = await _apiService.fetchParkingMapSpots(
+        availability: _availability,
+        areas: _selectedAreas,
+      );
+
+      setState(() {
+        _allSpots = data;
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('MAP ERROR: $e');
+      setState(() => _loading = false);
+    }
+  }
 
   String? _selectedSpotName;
 
@@ -64,8 +53,7 @@ class _MapPageState extends State<MapPage> {
 
   List<ParkingSpot> get _filteredSpots {
     return _allSpots.where((spot) {
-      if (_selectedAreas.isNotEmpty &&
-          !_selectedAreas.contains(spot.name)) {
+      if (_selectedAreas.isNotEmpty && !_selectedAreas.contains(spot.name)) {
         return false;
       }
 
@@ -112,8 +100,7 @@ class _MapPageState extends State<MapPage> {
                     const Expanded(
                       child: Text(
                         'Cari lokasi parkir...',
-                        style:
-                            TextStyle(fontSize: 14, color: Colors.black54),
+                        style: TextStyle(fontSize: 14, color: Colors.black54),
                       ),
                     ),
                     GestureDetector(
@@ -155,16 +142,13 @@ class _MapPageState extends State<MapPage> {
                           ),
                           MarkerLayer(
                             markers: _filteredSpots.map((spot) {
-                              final selected =
-                                  _selectedSpotName == spot.name;
+                              final selected = _selectedSpotName == spot.name;
                               return Marker(
-                                point:
-                                    LatLng(spot.lat, spot.lng),
+                                point: LatLng(spot.lat, spot.lng),
                                 width: 50,
                                 height: 50,
                                 child: GestureDetector(
-                                  onTap: () =>
-                                      _onSpotTapped(spot),
+                                  onTap: () => _onSpotTapped(spot),
                                   child: Icon(
                                     Icons.location_on,
                                     size: selected ? 36 : 30,
@@ -230,19 +214,16 @@ class _MapPageState extends State<MapPage> {
                 children: [
                   const Text(
                     'Filter Parkir',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-
                   const Text('Area Parkir'),
                   Wrap(
                     spacing: 8,
                     children: _allSpots.map((spot) {
                       return ChoiceChip(
                         label: Text(spot.name),
-                        selected:
-                            _selectedAreas.contains(spot.name),
+                        selected: _selectedAreas.contains(spot.name),
                         onSelected: (v) {
                           setModal(() {
                             v
@@ -253,17 +234,14 @@ class _MapPageState extends State<MapPage> {
                       );
                     }).toList(),
                   ),
-
                   const SizedBox(height: 16),
                   Text('Jarak Maksimal ${_maxDistance.toInt()}m'),
                   Slider(
                     value: _maxDistance,
                     min: 50,
                     max: 500,
-                    onChanged: (v) =>
-                        setModal(() => _maxDistance = v),
+                    onChanged: (v) => setModal(() => _maxDistance = v),
                   ),
-
                   const SizedBox(height: 12),
                   const Text('Ketersediaan'),
                   Wrap(
@@ -271,11 +249,9 @@ class _MapPageState extends State<MapPage> {
                     children: [
                       _availabilityChip('semua', 'Semua', setModal),
                       _availabilityChip('tersedia', 'Tersedia', setModal),
-                      _availabilityChip(
-                          'hampir', 'Hampir penuh', setModal),
+                      _availabilityChip('hampir', 'Hampir penuh', setModal),
                     ],
                   ),
-
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
@@ -293,8 +269,7 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  ChoiceChip _availabilityChip(
-      String value, String label, Function setModal) {
+  ChoiceChip _availabilityChip(String value, String label, Function setModal) {
     return ChoiceChip(
       label: Text(label),
       selected: _availability == value,
