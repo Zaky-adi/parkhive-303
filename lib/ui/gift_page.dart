@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import 'theme.dart';
+import 'package:awesome_dialog/awesome_dialog.dart';
 
 class GiftPage extends StatefulWidget {
   const GiftPage({super.key});
@@ -10,7 +12,11 @@ class GiftPage extends StatefulWidget {
 
 class _GiftPageState extends State<GiftPage>
     with SingleTickerProviderStateMixin {
-  int totalPoint = 850;
+  final ApiService _apiService = ApiService();
+
+  int totalPoint = 0;
+  bool isLoading = true;
+  List<dynamic> hadiahList = [];
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -21,6 +27,8 @@ class _GiftPageState extends State<GiftPage>
   @override
   void initState() {
     super.initState();
+    _loadPoint();
+    _loadHadiah();
 
     _animationController = AnimationController(
       vsync: this,
@@ -34,67 +42,99 @@ class _GiftPageState extends State<GiftPage>
         CurvedAnimation(parent: _animationController, curve: Curves.easeOut);
   }
 
+  Future<void> _loadPoint() async {
+    try {
+      final profile = await _apiService.getProfile();
+      if (!mounted) return;
+      setState(() {
+        totalPoint = profile['total_poin'] ?? 0;
+        isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> _loadHadiah() async {
+    try {
+      final data = await _apiService.getHadiah();
+      if (!mounted) return;
+
+      // Pisahkan hadiah yang sudah dan belum ditukar
+      List<dynamic> belumDitukar = [];
+      List<dynamic> sudahDitukar = [];
+
+      for (var h in data) {
+        final bool sudah =
+            (h['jumlah'] ?? 0) > 0; // jumlah pivot > 0 = sudah ditukar
+        if (sudah) {
+          sudahDitukar.add(h);
+        } else {
+          belumDitukar.add(h);
+        }
+      }
+
+      setState(() {
+        hadiahList = [
+          ...belumDitukar,
+          ...sudahDitukar
+        ]; // gabungkan: belum di atas
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  void _showSuccess(String message) {
+    AwesomeDialog(
+      context: context,
+      dialogType: DialogType.success,
+      animType: AnimType.scale,
+      title: 'Berhasil',
+      desc: message,
+      btnOkOnPress: () {},
+    ).show();
+  }
+
+  void _showError(String message) {
+    AwesomeDialog(
+      context: context,
+      dialogType: DialogType.error,
+      animType: AnimType.scale,
+      title: 'Gagal',
+      desc: message,
+      btnOkOnPress: () {},
+    ).show();
+  }
+
+  void _playFirework() {
+    setState(() => showFirework = true);
+    _animationController.forward(from: 0);
+    Future.delayed(const Duration(seconds: 1), () {
+      if (!mounted) return;
+      setState(() => showFirework = false);
+    });
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
   }
 
-  void _playFirework() {
-    setState(() => showFirework = true);
-    _animationController.forward(from: 0);
-
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() => showFirework = false);
-    });
-  }
-
-  void _tukarHadiah(String title, int point) {
-    if (totalPoint < point) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Poin kamu tidak mencukupi 😥'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Tukar'),
-        content: Text('Tukar "$title" dengan $point poin?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                totalPoint -= point;
-              });
-
-              Navigator.pop(context);
-              _playFirework();
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Berhasil menukar $title 🎉'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            child: const Text('Tukar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       body: Stack(
@@ -107,45 +147,33 @@ class _GiftPageState extends State<GiftPage>
                 children: [
                   _pointCard(),
                   const SizedBox(height: 20),
-
                   const Text(
-                    'Hadiah populer',
+                    'Hadiah',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 12),
-
-                  _giftItem(
-                    title: 'Voucher kantin 20k',
-                    subtitle: 'Makan siang gratis di kantin kampus',
-                    point: 500,
-                    icon: Icons.restaurant_menu,
-                  ),
-                  const SizedBox(height: 12),
-
-                  _giftItem(
-                    title: 'Diskon fotokopi 50%',
-                    subtitle: 'Potongan 50% untuk fotokopi',
-                    point: 200,
-                    icon: Icons.print,
-                  ),
-                  const SizedBox(height: 12),
-
-                  _giftItem(
-                    title: 'Merchandise kampus',
-                    subtitle: 'T-shirt atau tote bag kampus',
-                    point: 800,
-                    icon: Icons.shopping_bag,
-                  ),
-                  const SizedBox(height: 20),
-
-                  _infoNote(),
-                  const SizedBox(height: 80),
+                  hadiahList.isEmpty
+                      ? const Text('Belum ada hadiah')
+                      : Column(
+                          children: hadiahList.map((h) {
+                            final bool sudahDitukar = (h['jumlah'] ?? 0) > 0;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _giftItem(
+                                hadiahId: h['hadiah_id'],
+                                title: h['nama_hadiah'],
+                                subtitle: h['deskripsi_hadiah'] ?? '-',
+                                point: h['biaya_poin'],
+                                stok: h['stok_tersedia'] as int?,
+                                sudahDitukar: sudahDitukar,
+                              ),
+                            );
+                          }).toList(),
+                        ),
                 ],
               ),
             ),
           ),
-
-          /// 🎆 FIREWORK OVERLAY
           if (showFirework)
             Positioned.fill(
               child: FadeTransition(
@@ -158,19 +186,15 @@ class _GiftPageState extends State<GiftPage>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(
-                            Icons.auto_awesome,
-                            size: 120,
-                            color: Colors.orange,
-                          ),
+                          Icon(Icons.auto_awesome,
+                              size: 120, color: Colors.orange),
                           SizedBox(height: 12),
                           Text(
                             'Tukar Berhasil!',
                             style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white),
                           ),
                         ],
                       ),
@@ -186,16 +210,11 @@ class _GiftPageState extends State<GiftPage>
 
   Widget _pointCard() {
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.yellow, AppColors.deepYellow],
-        ),
+        gradient:
+            LinearGradient(colors: [AppColors.yellow, AppColors.deepYellow]),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6),
-        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -203,15 +222,11 @@ class _GiftPageState extends State<GiftPage>
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Total poin kamu',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
+              const Text('Total poin kamu'),
               Text(
                 '$totalPoint',
                 style:
-                    const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+                    const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -222,90 +237,76 @@ class _GiftPageState extends State<GiftPage>
   }
 
   Widget _giftItem({
+    required int hadiahId,
     required String title,
     required String subtitle,
     required int point,
-    required IconData icon,
+    int? stok,
+    bool sudahDitukar = false,
   }) {
+    final bool isVoucher = stok == null;
+    final bool stokHabis = !isVoucher && stok <= 0;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6),
-        ],
       ),
       child: Row(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon),
-          ),
+          const Icon(Icons.card_giftcard, size: 36),
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(subtitle, style: const TextStyle(color: Colors.black54)),
                 const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: Colors.black54)),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.star,
-                        size: 16, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text('$point poin',
-                        style:
-                            const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
+                Text(
+                  isVoucher
+                      ? '$point poin • Voucher'
+                      : '$point poin • Stok ${stok ?? "-"}',
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
           ),
-
           ElevatedButton(
-            onPressed: () => _tukarHadiah(title, point),
+            onPressed: (stokHabis || sudahDitukar)
+                ? null
+                : () {
+                    // Konfirmasi sebelum tukar
+                    AwesomeDialog(
+                      context: context,
+                      dialogType: DialogType.question,
+                      animType: AnimType.scale,
+                      title: 'Konfirmasi',
+                      desc: 'Tukar "$title" dengan $point poin?',
+                      btnCancelText: 'Batal',
+                      btnOkText: 'Tukar',
+                      btnCancelOnPress: () {},
+                      btnOkOnPress: () async {
+                        try {
+                          await _apiService.tukarHadiah(hadiahId);
+                          if (!mounted) return;
+                          await _loadPoint();
+                          await _loadHadiah();
+                          _playFirework();
+                          _showSuccess('Berhasil menukar $title 🎉');
+                        } catch (e) {
+                          if (!mounted) return;
+                          _showError(e.toString());
+                        }
+                      },
+                    ).show();
+                  },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              backgroundColor: sudahDitukar ? Colors.grey : null,
             ),
-            child: const Text('Tukar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoNote() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: const [
-          Icon(Icons.info_outline, color: Colors.blue),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Poin akan hangus dalam 6 bulan jika tidak ada aktivitas',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
+            child: Text(sudahDitukar ? 'Ditukar' : 'Tukar'),
           ),
         ],
       ),

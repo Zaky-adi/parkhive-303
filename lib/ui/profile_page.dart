@@ -219,8 +219,7 @@ class ProfilePage extends StatelessWidget {
                                   () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                      builder: (_) => HadiahPage()),
+                                  MaterialPageRoute(builder: (_) => GiftPage()),
                                 );
                               }),
                             ],

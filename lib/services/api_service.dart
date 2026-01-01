@@ -246,40 +246,43 @@ class ApiService {
     final response = await get('/hadiah');
 
     if (response['status'] == 'success') {
-      return response['data'];
+      return response['data'] as List;
     }
-    return [];
+
+    throw Exception('Gagal memuat hadiah');
   }
 
   Future<List<dynamic>> getHadiahSaya() async {
     final response = await get('/hadiah-saya');
 
     if (response['status'] == 'success') {
-      return response['data'];
+      return response['data'] as List;
     }
-    return [];
+
+    throw Exception('Gagal memuat hadiah saya');
   }
 
   // ================= TUKAR HADIAH =================
-  Future<void> tukarHadiah({
-    required int hadiahId,
-    int jumlah = 1,
-  }) async {
+// ================= TUKAR HADIAH =================
+  Future<void> tukarHadiah(int hadiahId) async {
     final token = await getToken();
     if (token == null) throw Exception('Token tidak ditemukan');
 
     final response = await http.post(
-      Uri.parse('$_baseUrl/hadiah/tukar/$hadiahId'),
+      Uri.parse('$_baseUrl/hadiah/$hadiahId/tukar'),
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
       },
-      body: jsonEncode({
-        'hadiah_id': hadiahId,
-        'jumlah': jumlah,
-      }),
     );
+
+    // Debug
+    print('TUKAR STATUS: ${response.statusCode}');
+    print('TUKAR BODY: ${response.body}');
+
+    if (response.body.trim().startsWith('<')) {
+      throw Exception('Server mengembalikan HTML');
+    }
 
     final body = jsonDecode(response.body);
 
@@ -332,8 +335,12 @@ class ApiService {
 
   Future<List<ParkingCardModel>> fetchParkingCards() async {
     final response = await http.get(
-      Uri.parse(
-          'https://trpl-303-park-hive.vercel.app/public/api/mobile/area-parkir'),
+      Uri.parse('$_baseUrl/mobile/area-parkir'),
+      headers: {
+        'Accept': 'application/json',
+        // Tambahkan Auth jika endpoint ini butuh login
+        // 'Authorization': 'Bearer ${await getToken()}',
+      },
     );
 
     if (response.statusCode == 200) {
@@ -385,5 +392,22 @@ class ApiService {
     return (jsonData['data'] as List)
         .map((e) => ParkingSpot.fromJson(e))
         .toList();
+  }
+
+  Future<int> getPoinSaya() async {
+    final response = await get('/profile');
+
+    return response['profil']['gamifikasi']['poin'];
+  }
+
+  Future<List<dynamic>> getLeaderboard() async {
+    // Menggunakan helper get() yang sudah kamu buat
+    final response = await get('/leaderboard');
+
+    if (response['status'] == 'success') {
+      return response['data'];
+    }
+
+    throw Exception(response['message'] ?? 'Gagal memuat leaderboard');
   }
 }

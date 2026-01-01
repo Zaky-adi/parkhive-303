@@ -1,275 +1,303 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'theme.dart';
 
-class HadiahPage extends StatefulWidget {
-  const HadiahPage({Key? key}) : super(key: key);
+class GiftPage extends StatefulWidget {
+  const GiftPage({super.key});
 
   @override
-  State<HadiahPage> createState() => _HadiahPageState();
+  State<GiftPage> createState() => _GiftPageState();
 }
 
-class _HadiahPageState extends State<HadiahPage> {
-  final ApiService _apiService = ApiService();
+class _GiftPageState extends State<GiftPage>
+    with SingleTickerProviderStateMixin {
+  int totalPoint = 850;
 
-  /// 0 = daftar hadiah
-  /// 1 = hadiah saya
-  int selectedTab = 0;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
 
-  List<int> claimedHadiahIds = [];
+  bool showFirework = false;
 
-  // ================= EXPIRED CHECK =================
-  bool isExpired(String? date) {
-    if (date == null) return false;
-    try {
-      return DateTime.now().isAfter(DateTime.parse(date));
-    } catch (e) {
-      return false;
-    }
+  @override
+  void initState() {
+    super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation =
+        CurvedAnimation(parent: _animationController, curve: Curves.elasticOut);
+
+    _fadeAnimation =
+        CurvedAnimation(parent: _animationController, curve: Curves.easeOut);
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hadiah'),
-        backgroundColor: const Color(0xFFF6C709),
-      ),
-      body: Column(
-        children: [
-          // ================= TAB =================
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                tabItem('Daftar Hadiah', 0),
-                const SizedBox(width: 24),
-                tabItem('Hadiah Saya', 1),
-              ],
-            ),
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  void _playFirework() {
+    setState(() => showFirework = true);
+    _animationController.forward(from: 0);
+
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() => showFirework = false);
+    });
+  }
+
+  void _tukarHadiah(String title, int point) {
+    if (totalPoint < point) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Poin kamu tidak mencukupi 😥'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Tukar'),
+        content: Text('Tukar "$title" dengan $point poin?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
           ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                totalPoint -= point;
+              });
 
-          const Divider(height: 1),
+              Navigator.pop(context);
+              _playFirework();
 
-          // ================= CONTENT =================
-          Expanded(
-            child: FutureBuilder(
-              future: Future.wait([
-                _apiService.getHadiah(),
-                _apiService.getHadiahSaya(),
-              ]),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text(snapshot.error.toString()));
-                }
-
-                final allHadiah = snapshot.data![0] as List<dynamic>;
-                final hadiahSaya = snapshot.data![1] as List<dynamic>;
-
-                // simpan hadiah yang sudah diklaim
-                claimedHadiahIds =
-                    hadiahSaya.map<int>((h) => h['hadiah_id'] as int).toList();
-
-                final data = selectedTab == 0 ? allHadiah : hadiahSaya;
-
-                if (data.isEmpty) {
-                  return Center(
-                    child: Text(
-                      selectedTab == 0
-                          ? 'Belum ada hadiah tersedia'
-                          : 'Kamu belum memiliki hadiah',
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: data.length,
-                  itemBuilder: (context, index) {
-                    final h = data[index];
-                    final expired = isExpired(h['tanggal_kadaluarsa']);
-                    final isClaimed = claimedHadiahIds.contains(h['hadiah_id']);
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.card_giftcard,
-                          color: Colors.amber,
-                          size: 32,
-                        ),
-                        title: Text(
-                          h['nama_hadiah'] ?? '-',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(h['deskripsi_hadiah'] ?? '-'),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.star,
-                                    size: 16, color: Colors.orange),
-                                const SizedBox(width: 4),
-                                Text('${h['biaya_poin']} poin'),
-                                const SizedBox(width: 12),
-                                Text(
-                                  selectedTab == 0
-                                      ? 'Stok: ${h['stok_tersedia']}'
-                                      : 'Jumlah: ${h['jumlah']}',
-                                ),
-                              ],
-                            ),
-                            if (h['tanggal_kadaluarsa'] != null) ...[
-                              const SizedBox(height: 6),
-
-                              // ===== KHUSUS HADIAH SAYA (TENGAH) =====
-                              if (selectedTab == 1)
-                                Center(
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        isExpired(h['tanggal_kadaluarsa'])
-                                            ? Icons.cancel
-                                            : Icons.schedule,
-                                        size: 16,
-                                        color:
-                                            isExpired(h['tanggal_kadaluarsa'])
-                                                ? Colors.red
-                                                : Colors.green,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isExpired(h['tanggal_kadaluarsa'])
-                                            ? 'Kadaluarsa (${h['tanggal_kadaluarsa']})'
-                                            : 'Berlaku sampai ${h['tanggal_kadaluarsa']}',
-                                      ),
-                                    ],
-                                  ),
-                                )
-
-                              // ===== DAFTAR HADIAH (KIRI) =====
-                              else
-                                Row(
-                                  children: [
-                                    Icon(
-                                      expired ? Icons.cancel : Icons.schedule,
-                                      size: 16,
-                                      color:
-                                          expired ? Colors.red : Colors.green,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      expired
-                                          ? 'Kadaluarsa (${h['tanggal_kadaluarsa']})'
-                                          : 'Berlaku sampai ${h['tanggal_kadaluarsa']}',
-                                      style: TextStyle(
-                                        color:
-                                            expired ? Colors.red : Colors.green,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                            ]
-                          ],
-                        ),
-
-                        // ================= TOMBOL TUKAR =================
-                        trailing: selectedTab == 0
-                            ? ElevatedButton(
-                                onPressed: (!isClaimed &&
-                                        (h['stok_tersedia'] ?? 0) > 0 &&
-                                        !expired)
-                                    ? () async {
-                                        await _apiService.tukarHadiah(
-                                          hadiahId: h['hadiah_id'],
-                                          jumlah: 1,
-                                        );
-
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                '🎉 Hadiah berhasil diklaim'),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                        );
-
-                                        setState(() {});
-                                      }
-                                    : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isClaimed
-                                      ? Colors.grey[300]
-                                      : const Color(0xFFF6C709),
-                                ),
-                                child: Text(
-                                  isClaimed
-                                      ? 'Diklaim'
-                                      : expired
-                                          ? 'Kadaluarsa'
-                                          : 'Tukar',
-                                  style: TextStyle(
-                                    color: isClaimed
-                                        ? Colors.black54
-                                        : Colors.black,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Berhasil menukar $title 🎉'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            child: const Text('Tukar'),
           ),
         ],
       ),
     );
   }
 
-  // ================= TAB WIDGET =================
-  Widget tabItem(String title, int index) {
-    final isActive = selectedTab == index;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedTab = index;
-        });
-      },
-      child: Column(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      body: Stack(
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: isActive ? Colors.black : Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 4),
-          if (isActive)
-            Container(
-              width: 40,
-              height: 3,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF6C709),
-                borderRadius: BorderRadius.circular(4),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _pointCard(),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Hadiah populer',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  _giftItem(
+                    title: 'Voucher kantin 20k',
+                    subtitle: 'Makan siang gratis di kantin kampus',
+                    point: 500,
+                    icon: Icons.restaurant_menu,
+                  ),
+                  const SizedBox(height: 12),
+                  _giftItem(
+                    title: 'Diskon fotokopi 50%',
+                    subtitle: 'Potongan 50% untuk fotokopi',
+                    point: 200,
+                    icon: Icons.print,
+                  ),
+                  const SizedBox(height: 12),
+                  _giftItem(
+                    title: 'Merchandise kampus',
+                    subtitle: 'T-shirt atau tote bag kampus',
+                    point: 800,
+                    icon: Icons.shopping_bag,
+                  ),
+                  const SizedBox(height: 20),
+                  _infoNote(),
+                  const SizedBox(height: 80),
+                ],
               ),
             ),
+          ),
+
+          /// 🎆 FIREWORK OVERLAY
+          if (showFirework)
+            Positioned.fill(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Container(
+                  color: Colors.black26,
+                  child: Center(
+                    child: ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.auto_awesome,
+                            size: 120,
+                            color: Colors.orange,
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            'Tukar Berhasil!',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pointCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.yellow, AppColors.deepYellow],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Total poin kamu',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$totalPoint',
+                style:
+                    const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const Icon(Icons.star, size: 36),
+        ],
+      ),
+    );
+  }
+
+  Widget _giftItem({
+    required String title,
+    required String subtitle,
+    required int point,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(color: Colors.black12, blurRadius: 6),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style:
+                        const TextStyle(fontSize: 12, color: Colors.black54)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.star, size: 16, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    Text('$point poin',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _tukarHadiah(title, point),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Tukar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoNote() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: const [
+          Icon(Icons.info_outline, color: Colors.blue),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Poin akan hangus dalam 6 bulan jika tidak ada aktivitas',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
