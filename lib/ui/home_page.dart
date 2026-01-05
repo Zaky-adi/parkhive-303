@@ -8,6 +8,7 @@ import 'notification_page.dart';
 import 'report_page.dart';
 import '../ui/parking_card_model.dart';
 import '../services/api_service.dart';
+import '../ui/challenge_model.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -89,46 +90,29 @@ class HomeContent extends StatefulWidget {
 }
 
 class _HomeContentState extends State<HomeContent> {
-  int challengeProgress = 0;
-  final int challengeTarget = 2;
-  bool rewardClaimed = false;
-
   late Future<List<ParkingCardModel>> _parkingFuture;
+  late Future<ChallengeModel> _challengeFuture;
 
   @override
   void initState() {
     super.initState();
     _parkingFuture = ApiService().fetchParkingCards();
+    _challengeFuture = ApiService().fetchDailyChallenge();
   }
 
   void _onReport(BuildContext context) {
-    if (challengeProgress < challengeTarget) {
-      setState(() {
-        challengeProgress++;
-      });
-
-      if (challengeProgress == challengeTarget && !rewardClaimed) {
-        rewardClaimed = true;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Tantangan selesai! +50 poin'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    }
-
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ReportPage()),
     );
   }
 
+  Future<void> _loadChallenge() async {
+    final data = await ApiService().fetchDailyChallenge();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final progressRatio = challengeProgress / challengeTarget;
-
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -137,7 +121,58 @@ class _HomeContentState extends State<HomeContent> {
           children: [
             _header(context),
             const SizedBox(height: 16),
-            _challengeCard(progressRatio),
+
+            /// ===== CHALLENGE =====
+            FutureBuilder<ChallengeModel>(
+              future: _challengeFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Text(snapshot.error.toString());
+                }
+
+                final challenge = snapshot.data!;
+                final progressRatio = challenge.progress / challenge.target;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _challengeCard(progressRatio, challenge),
+                    // DESIGN LAMA
+
+                    const SizedBox(height: 8),
+                    Text(
+                      '${challenge.progress} / ${challenge.target}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    if (challenge.progress >= challenge.target &&
+                        !challenge.rewardClaimed)
+                      ElevatedButton(
+                        onPressed: () async {
+                          await ApiService().claimChallengeReward();
+                          setState(() {
+                            _challengeFuture =
+                                ApiService().fetchDailyChallenge();
+                          });
+                        },
+                        child: const Text('Klaim reward'),
+                      )
+                    else if (challenge.rewardClaimed)
+                      const Text(
+                        '🎉 Reward sudah diklaim',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                  ],
+                );
+              },
+            ),
+
             const SizedBox(height: 24),
             const Text(
               'Spot parkir kampus',
@@ -224,7 +259,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 
   // ================= TANTANGAN =================
-  Widget _challengeCard(double ratio) {
+  Widget _challengeCard(double ratio, ChallengeModel challenge) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -272,8 +307,31 @@ class _HomeContentState extends State<HomeContent> {
             ),
           ),
           const SizedBox(height: 8),
+          if (challenge.progress >= challenge.target &&
+              !challenge.rewardClaimed)
+            ElevatedButton(
+              onPressed: () async {
+                await ApiService().claimChallengeReward();
+                setState(() {
+                  _challengeFuture = ApiService().fetchDailyChallenge();
+                });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('🎉 Reward berhasil diklaim!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              child: const Text('Klaim reward'),
+            )
+          else if (challenge.rewardClaimed)
+            const Text(
+              '🎉 Reward sudah diklaim',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           Text(
-            '$challengeProgress / $challengeTarget',
+            '${challenge.progress} / ${challenge.target}',
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ],

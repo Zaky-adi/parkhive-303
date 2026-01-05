@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/area_parkir_model.dart';
 import '../ui/parking_card_model.dart';
 import '../models/parking_spot.dart';
+import '../ui/challenge_model.dart';
+import '../ui/notification_page.dart'; // Import agar bisa akses NotifData
 
 class ApiService {
   static const String _baseUrl =
@@ -409,5 +411,78 @@ class ApiService {
     }
 
     throw Exception(response['message'] ?? 'Gagal memuat leaderboard');
+  }
+
+  Future<ChallengeModel> fetchDailyChallenge() async {
+    final response = await get('/challenge/today');
+
+    if (response['status'] != 'success') {
+      throw Exception(response['message'] ?? 'Gagal memuat tantangan');
+    }
+
+    return ChallengeModel.fromJson(response['data']);
+  }
+
+  Future<void> redeemChallengeByPoints() async {
+    final response = await post('/challenge/redeem');
+
+    if (response['status'] != 'success') {
+      throw Exception(response['message'] ?? 'Gagal menukar poin');
+    }
+  }
+
+  Future<void> claimChallengeReward() async {
+    final token = await getToken();
+    final response = await http.post(
+      Uri.parse('$_baseUrl/challenge/claim'),
+      headers: {
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    );
+
+    // FIXED: Jangan throw Exception kalau sukses (status 200)
+    if (response.statusCode == 200) {
+      // Berhasil
+      return;
+    } else {
+      final body = jsonDecode(response.body);
+      throw Exception(body['message'] ?? 'Gagal klaim reward');
+    }
+  }
+
+  Future<void> markAsRead(int notifId, String token) async {
+    await http.patch(
+      Uri.parse('$_baseUrl/notifikasi/$notifId/read'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+  }
+
+  // Hapus Notifikasi (DELETE)
+  Future<void> deleteNotification(int notifId, String token) async {
+    await http.delete(
+      Uri.parse('$_baseUrl/notifikasi/$notifId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+  }
+
+  Future<List<NotifData>> getNotifications(String token) async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/notifikasi'),
+      headers: {
+        'Authorization': 'Bearer $token', // Kirim Token Auth
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final jsonResponse = json.decode(response.body);
+      // Akses key 'data' karena struktur JSON laravel tadi: { status:..., data: [] }
+      List data = jsonResponse['data'];
+
+      return data.map((json) => NotifData.fromLaravel(json)).toList();
+    } else {
+      throw Exception('Gagal memuat notifikasi');
+    }
   }
 }
