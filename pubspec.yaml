@@ -35,7 +35,7 @@ dependencies:
   # Map
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
-  flutter_local_notifications: ^19.5.0
+  flutter_local_notifications: ^17.0.0
 
 dev_dependencies:
   flutter_test:

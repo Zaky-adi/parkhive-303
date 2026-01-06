@@ -7,6 +7,7 @@ import '../ui/parking_card_model.dart';
 import '../models/parking_spot.dart';
 import '../ui/challenge_model.dart';
 import '../ui/notification_page.dart'; // Import agar bisa akses NotifData
+import '../ui/notification_model.dart';
 
 class ApiService {
   static const String _baseUrl =
@@ -466,7 +467,7 @@ class ApiService {
     );
   }
 
-  Future<List<NotifData>> getNotifications(String token) async {
+  Future<List<NotifModel>> getNotifications(String token) async {
     final response = await http.get(
       Uri.parse('$_baseUrl/notifikasi'),
       headers: {
@@ -480,7 +481,7 @@ class ApiService {
       // Akses key 'data' karena struktur JSON laravel tadi: { status:..., data: [] }
       List data = jsonResponse['data'];
 
-      return data.map((json) => NotifData.fromLaravel(json)).toList();
+      return data.map((e) => NotifModel.fromJson(e)).toList();
     } else {
       throw Exception('Gagal memuat notifikasi');
     }

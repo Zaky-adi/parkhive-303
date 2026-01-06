@@ -7,12 +7,12 @@ enum NotifType {
 }
 
 class NotifModel {
-  final int id; // notif_id
-  final int userId; // pengguna_id
-  final NotifType type; // tipe_notif (ENUM)
-  final String message; // pesan
-  bool isRead; // sudah_dibaca
-  final DateTime createdAt; // dibuat_pada
+  final int id;
+  final int userId;
+  final NotifType type;
+  final String message;
+  bool isRead;
+  final DateTime createdAt;
 
   NotifModel({
     required this.id,
@@ -23,20 +23,31 @@ class NotifModel {
     required this.createdAt,
   });
 
-  // Factory untuk parsing JSON dari API Laravel
+  // ===== DARI API (Laravel → Flutter) =====
   factory NotifModel.fromJson(Map<String, dynamic> json) {
     return NotifModel(
       id: json['notif_id'],
       userId: json['pengguna_id'],
       type: _parseType(json['tipe_notif']),
       message: json['pesan'],
-      // Laravel mengirim boolean sebagai 1/0 atau true/false
       isRead: json['sudah_dibaca'] == 1 || json['sudah_dibaca'] == true,
       createdAt: DateTime.parse(json['dibuat_pada']),
     );
   }
 
-  // Helper konversi String DB ke Enum Flutter
+  // ===== KE API / LOCAL / PAYLOAD =====
+  Map<String, dynamic> toJson() {
+    return {
+      'notif_id': id,
+      'pengguna_id': userId,
+      'tipe_notif': _typeToString(type),
+      'pesan': message,
+      'sudah_dibaca': isRead ? 1 : 0,
+      'dibuat_pada': createdAt.toIso8601String(),
+    };
+  }
+
+  // ===== HELPER =====
   static NotifType _parseType(String type) {
     switch (type) {
       case 'Update_Status':
@@ -49,6 +60,21 @@ class NotifModel {
         return NotifType.permintaanVerifikasi;
       default:
         return NotifType.unknown;
+    }
+  }
+
+  static String _typeToString(NotifType type) {
+    switch (type) {
+      case NotifType.updateStatus:
+        return 'Update_Status';
+      case NotifType.updatePeringkat:
+        return 'Update_Peringkat';
+      case NotifType.rekomendasi:
+        return 'Rekomendasi';
+      case NotifType.permintaanVerifikasi:
+        return 'Permintaan_Verifikasi';
+      default:
+        return 'Unknown';
     }
   }
 }

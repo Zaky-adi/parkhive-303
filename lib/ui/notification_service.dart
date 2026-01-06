@@ -1,70 +1,103 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class NotificationService {
-  // Singleton pattern agar instance-nya satu saja
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  Future<void> init() async {
-    // Android Setup
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    // Pastikan ic_launcher ada di android/app/src/main/res/mipmap...
+  static const String _channelId = 'parkhive_channel';
+  static const String _channelName = 'ParkHive Notifications';
+  static const String _channelDesc =
+      'Notifikasi seputar parkir, poin, dan verifikasi';
 
-    // iOS/macOS Setup
-    const DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+  /// INIT — panggil SEKALI (di main / root page)
+  Future<void> init({
+    void Function(String? payload)? onNotificationTap,
+  }) async {
+    if (kIsWeb) return;
+
+    const initSettings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
     );
 
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        onNotificationTap?.call(response.payload);
+      },
     );
 
-    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    if (Platform.isAndroid) {
+      await _createAndroidChannel();
+    }
 
-    // Request Permission untuk Android 13+
-    await _requestPermission();
+    if (Platform.isIOS) {
+      await _requestIOSPermission();
+    }
   }
 
-  Future<void> _requestPermission() async {
-    await Permission.notification.request();
+  /// ANDROID PERMISSION (Android 13+)
+  Future<void> _requestAndroidPermission() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
   }
 
-  // Fungsi untuk memunculkan notifikasi
+  /// iOS PERMISSION
+  Future<void> _requestIOSPermission() async {
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    await ios?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+  }
+
+  /// ANDROID CHANNEL
+  Future<void> _createAndroidChannel() async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    const channel = AndroidNotificationChannel(
+      _channelId,
+      _channelName,
+      description: _channelDesc,
+      importance: Importance.max,
+    );
+
+    await android?.createNotificationChannel(channel);
+  }
+
+  /// SHOW NOTIFICATION
   Future<void> showNotification({
     required int id,
     required String title,
     required String body,
-    required String payload,
+    String? payload,
   }) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'parkhive_channel_id', // ID Channel unik
-      'ParkHive Notifications', // Nama Channel
-      channelDescription: 'Notifikasi seputar parkir dan poin',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: true,
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) return;
+
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDesc,
+        importance: Importance.max,
+        priority: Priority.high,
+      ),
     );
 
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await flutterLocalNotificationsPlugin.show(
+    await _plugin.show(
       id,
       title,
       body,
-      platformChannelSpecifics,
+      details,
       payload: payload,
     );
   }
