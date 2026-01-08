@@ -93,6 +93,8 @@ class _HomeContentState extends State<HomeContent> {
   late Future<List<ParkingCardModel>> _parkingFuture;
   late Future<ChallengeModel> _challengeFuture;
 
+  bool _isClaimingReward = false;
+
   @override
   void initState() {
     super.initState();
@@ -144,30 +146,6 @@ class _HomeContentState extends State<HomeContent> {
                     // DESIGN LAMA
 
                     const SizedBox(height: 8),
-                    Text(
-                      '${challenge.progress} / ${challenge.target}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    if (challenge.progress >= challenge.target &&
-                        !challenge.rewardClaimed)
-                      ElevatedButton(
-                        onPressed: () async {
-                          await ApiService().claimChallengeReward();
-                          setState(() {
-                            _challengeFuture =
-                                ApiService().fetchDailyChallenge();
-                          });
-                        },
-                        child: const Text('Klaim reward'),
-                      )
-                    else if (challenge.rewardClaimed)
-                      const Text(
-                        '🎉 Reward sudah diklaim',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
                   ],
                 );
               },
@@ -306,29 +284,41 @@ class _HomeContentState extends State<HomeContent> {
               color: Colors.black,
             ),
           ),
-          const SizedBox(height: 8),
-          if (challenge.progress >= challenge.target &&
-              !challenge.rewardClaimed)
-            ElevatedButton(
-              onPressed: () async {
-                await ApiService().claimChallengeReward();
-                setState(() {
-                  _challengeFuture = ApiService().fetchDailyChallenge();
-                });
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🎉 Reward berhasil diklaim!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              child: const Text('Klaim reward'),
-            )
-          else if (challenge.rewardClaimed)
+          const SizedBox(height: 12),
+          if (challenge.rewardClaimed)
             const Text(
-              '🎉 Reward sudah diklaim',
+              '🎉 Poin sudah berhasil diklaim',
               style: TextStyle(fontWeight: FontWeight.bold),
+            )
+          else
+            ElevatedButton(
+              onPressed: (challenge.progress >= challenge.target &&
+                      !_isClaimingReward)
+                  ? () async {
+                      setState(() => _isClaimingReward = true);
+
+                      await ApiService().claimChallengeReward();
+
+                      setState(() {
+                        _challengeFuture = ApiService().fetchDailyChallenge();
+                        _isClaimingReward = false;
+                      });
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Poin berhasil diklaim'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  : null, // 🔒 disable otomatis
+              child: _isClaimingReward
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Klaim reward'),
             ),
           Text(
             '${challenge.progress} / ${challenge.target}',

@@ -203,7 +203,7 @@ class _ReportPageState extends State<ReportPage> {
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: CircularProgressIndicator(),
               ),
-            if (_selectedType == "UPDATE") ...[
+            if (_selectedType == "Update_Status") ...[
               const SizedBox(height: 16),
               _label("Slot tersedia*"),
               TextField(
@@ -259,7 +259,8 @@ class _ReportPageState extends State<ReportPage> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitLaporan,
+                onPressed:
+                    (_isSubmitting || _loadingArea) ? null : _submitLaporan,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   shape: RoundedRectangleBorder(
@@ -302,7 +303,7 @@ class _ReportPageState extends State<ReportPage> {
             ),
             const SizedBox(height: 4),
             const Text(
-              "Bantu pengguna lain dan dapatkan poin!",
+              "Bantu pengguna lain dan dapatkan poin setelah diverifikasi admin",
               style: TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 12),
@@ -353,9 +354,9 @@ class _ReportPageState extends State<ReportPage> {
             ),
           ),
           SizedBox(height: 6),
-          Text("• Laporan akurat (+ bonus 5 poin)"),
-          Text("• Tambahkan foto (+3 poin)"),
-          Text("• Update berkala (+2 poin / update)"),
+          Text("• Laporan akurat meningkatkan peluang diverifikasi"),
+          Text("• Sertakan foto agar laporan lebih valid"),
+          Text("• Update berkala membantu pengguna lain"),
         ],
       ),
     );

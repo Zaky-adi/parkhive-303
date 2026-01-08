@@ -7,7 +7,6 @@ import '../ui/parking_card_model.dart';
 import '../models/parking_spot.dart';
 import '../ui/challenge_model.dart';
 import '../ui/notification_page.dart'; // Import agar bisa akses NotifData
-import '../ui/notification_model.dart';
 
 class ApiService {
   static const String _baseUrl =
@@ -452,36 +451,40 @@ class ApiService {
     }
   }
 
-  Future<void> markAsRead(int notifId, String token) async {
-    await http.patch(
+  Future<void> markAsRead(int notifId) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Token tidak ditemukan');
+
+    final response = await http.post(
       Uri.parse('$_baseUrl/notifikasi/$notifId/read'),
-      headers: {'Authorization': 'Bearer $token'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
     );
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal menandai notifikasi dibaca');
+    }
   }
 
-  // Hapus Notifikasi (DELETE)
-  Future<void> deleteNotification(int notifId, String token) async {
-    await http.delete(
-      Uri.parse('$_baseUrl/notifikasi/$notifId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-  }
+  Future<List<NotifData>> getNotifications() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Token tidak ditemukan');
 
-  Future<List<NotifModel>> getNotifications(String token) async {
     final response = await http.get(
       Uri.parse('$_baseUrl/notifikasi'),
       headers: {
-        'Authorization': 'Bearer $token', // Kirim Token Auth
+        'Authorization': 'Bearer $token',
         'Accept': 'application/json',
       },
     );
 
     if (response.statusCode == 200) {
-      final jsonResponse = json.decode(response.body);
-      // Akses key 'data' karena struktur JSON laravel tadi: { status:..., data: [] }
-      List data = jsonResponse['data'];
-
-      return data.map((e) => NotifModel.fromJson(e)).toList();
+      final jsonResponse = jsonDecode(response.body);
+      return (jsonResponse['data'] as List)
+          .map((e) => NotifData.fromLaravel(e))
+          .toList();
     } else {
       throw Exception('Gagal memuat notifikasi');
     }

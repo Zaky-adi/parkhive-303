@@ -1,3 +1,4 @@
+import '../utils/laporan_poin_helper.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'logout_dialog.dart';
@@ -78,11 +79,13 @@ class ProfilePage extends StatelessWidget {
                   itemCount: laporans.length,
                   itemBuilder: (_, i) {
                     final l = laporans[i];
+                    final poin = hitungPoinLaporan(l);
+
                     return ListTile(
                       leading: const Icon(Icons.local_parking),
                       title: Text(l['tipe_laporan'] ?? '-'),
                       subtitle: Text(
-                        l['status'] ?? '-',
+                        '${l['status']} • +$poin poin',
                         style: TextStyle(color: statusColor(l['status'])),
                       ),
                     );
