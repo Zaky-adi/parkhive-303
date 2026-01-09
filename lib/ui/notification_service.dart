@@ -1,5 +1,8 @@
+import 'dart:async';
+import '../services/api_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
 
 class NotificationService {
   // Singleton pattern agar instance-nya satu saja
@@ -10,13 +13,25 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
+  Timer? _timer;
+  int _lastNotifId = 0;
+  bool _isPolling = false;
+
+  String _titleFromNotif(Map notif) {
+    switch (notif['judul']) {
+      case 'Laporan Diverifikasi':
+        return 'Laporan Diverifikasi';
+      case 'laporan Ditolak':
+        return 'Laporan Ditolak';
+      default:
+        return 'Notifikasi';
+    }
+  }
+
   Future<void> init() async {
-    // Android Setup
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    // Pastikan ic_launcher ada di android/app/src/main/res/mipmap...
 
-    // iOS/macOS Setup
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -32,8 +47,38 @@ class NotificationService {
 
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-    // Request Permission untuk Android 13+
+    // 🔴 TAMBAHKAN INI
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'parkhive_channel_id',
+      'ParkHive Notifications',
+      description: 'Notifikasi seputar parkir dan poin',
+      importance: Importance.max,
+    );
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
     await _requestPermission();
+  }
+
+  void startPolling() {
+    if (_isPolling) return;
+
+    _lastNotifId = 0; // reset agar notif baru bisa muncul
+    _isPolling = true;
+
+    _timer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _checkNewNotification(),
+    );
+  }
+
+  /// Panggil saat logout
+  void stopPolling() {
+    _timer?.cancel();
+    _isPolling = false;
   }
 
   Future<void> _requestPermission() async {
@@ -67,5 +112,30 @@ class NotificationService {
       platformChannelSpecifics,
       payload: payload,
     );
+  }
+
+  Future<void> _checkNewNotification() async {
+    try {
+      final api = ApiService();
+      final response = await api.getUnreadNotifications();
+
+      if (response.isEmpty) return;
+
+      final notif = response.first;
+      final int notifId = notif['notif_id'];
+
+      // Cegah double popup
+      if (notifId <= _lastNotifId) return;
+      _lastNotifId = notifId;
+
+      await showNotification(
+        id: notifId,
+        title: _titleFromNotif(notif),
+        body: notif['pesan'] ?? '',
+        payload: 'notif_$notifId',
+      );
+    } catch (e) {
+      // log saja, jangan crash
+    }
   }
 }

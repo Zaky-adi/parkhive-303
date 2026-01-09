@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -489,4 +490,18 @@ class ApiService {
       throw Exception('Gagal memuat notifikasi');
     }
   }
+
+  Future<List> getUnreadNotifications() async {
+    final res = await dio.get('/notifikasi/unread');
+    return res.data['data'] ?? [];
+  }
+
+  final Dio dio = Dio(
+    BaseOptions(
+      baseUrl: 'https://trpl-303-park-hive.vercel.app/public/api',
+      headers: {
+        'Accept': 'application/json',
+      },
+    ),
+  );
 }
