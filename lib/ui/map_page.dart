@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/api_service.dart';
 import '../models/parking_spot.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MapPage extends StatefulWidget {
   static const String routeName = '/map';
@@ -15,7 +16,9 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
-  final LatLng _center = const LatLng(1.1191557, 104.0483);
+  final LatLng _defaultCenter = const LatLng(1.1191557, 104.0483);
+
+  LatLng? _userLocation;
 
   final ApiService _apiService = ApiService();
   List<ParkingSpot> _allSpots = [];
@@ -25,6 +28,7 @@ class _MapPageState extends State<MapPage> {
   void initState() {
     super.initState();
     _loadParkingMap();
+    _getUserLocation(); // async, tidak memblokir data
   }
 
   Future<void> _loadParkingMap() async {
@@ -44,6 +48,42 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _getUserLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Cek apakah GPS aktif
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Location service tidak aktif');
+    }
+
+    // Cek permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Izin lokasi ditolak');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Izin lokasi ditolak permanen');
+    }
+
+    // Ambil posisi
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    setState(() {
+      _userLocation = LatLng(position.latitude, position.longitude);
+    });
+
+    // Geser peta ke lokasi user
+    _mapController.move(_userLocation!, 18);
+  }
+
   String? _selectedSpotName;
 
   /// FILTER STATE
@@ -52,14 +92,16 @@ class _MapPageState extends State<MapPage> {
   String _availability = 'semua';
 
   List<ParkingSpot> get _filteredSpots {
+    final center = _userLocation ?? _defaultCenter;
+
     return _allSpots.where((spot) {
       if (_selectedAreas.isNotEmpty && !_selectedAreas.contains(spot.name)) {
         return false;
       }
 
       final distance = _calculateDistance(
-        _center.latitude,
-        _center.longitude,
+        center.latitude,
+        center.longitude,
         spot.lat,
         spot.lng,
       );
@@ -132,7 +174,8 @@ class _MapPageState extends State<MapPage> {
                       child: FlutterMap(
                         mapController: _mapController,
                         options: MapOptions(
-                          initialCenter: _center,
+                          initialCenter: _userLocation ??
+                              const LatLng(1.1191557, 104.0483),
                           initialZoom: 18,
                         ),
                         children: [
@@ -141,22 +184,38 @@ class _MapPageState extends State<MapPage> {
                                 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                           ),
                           MarkerLayer(
-                            markers: _filteredSpots.map((spot) {
-                              final selected = _selectedSpotName == spot.name;
-                              return Marker(
-                                point: LatLng(spot.lat, spot.lng),
-                                width: 50,
-                                height: 50,
-                                child: GestureDetector(
-                                  onTap: () => _onSpotTapped(spot),
-                                  child: Icon(
-                                    Icons.location_on,
-                                    size: selected ? 36 : 30,
-                                    color: Colors.yellow[700],
+                            markers: [
+                              // MARKER LOKASI USER
+                              if (_userLocation != null)
+                                Marker(
+                                  point: _userLocation!,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.person_pin_circle,
+                                    size: 36,
+                                    color: Colors.blue,
                                   ),
                                 ),
-                              );
-                            }).toList(),
+
+                              // MARKER PARKIR
+                              ..._filteredSpots.map((spot) {
+                                final selected = _selectedSpotName == spot.name;
+                                return Marker(
+                                  point: LatLng(spot.lat, spot.lng),
+                                  width: 50,
+                                  height: 50,
+                                  child: GestureDetector(
+                                    onTap: () => _onSpotTapped(spot),
+                                    child: Icon(
+                                      Icons.location_on,
+                                      size: selected ? 36 : 30,
+                                      color: Colors.yellow[700],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ],
                           ),
                         ],
                       ),

@@ -4,13 +4,10 @@ import 'ui/splash.dart';
 import 'ui/notification_service.dart';
 
 void main() async {
-  // WAJIB untuk async init
   WidgetsFlutterBinding.ensureInitialized();
 
-  // INIT NOTIFICATION SERVICE
-  final notifService = NotificationService();
-  await notifService.init();
-  notifService.startPolling();
+  await NotificationService().init();
+  NotificationService().startPolling();
 
   runApp(const MyApp());
 }

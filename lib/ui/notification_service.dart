@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   // Singleton pattern agar instance-nya satu saja
@@ -69,9 +70,12 @@ class NotificationService {
     _lastNotifId = 0; // reset agar notif baru bisa muncul
     _isPolling = true;
 
-    _timer = Timer.periodic(
+    Timer.periodic(
       const Duration(seconds: 15),
-      (_) => _checkNewNotification(),
+      (_) {
+        debugPrint('🔔 Polling notif...');
+        _checkNewNotification();
+      },
     );
   }
 
@@ -121,21 +125,22 @@ class NotificationService {
 
       if (response.isEmpty) return;
 
-      final notif = response.first;
-      final int notifId = notif['notif_id'];
+      for (final notif in response) {
+        final int notifId = notif['notif_id'];
 
-      // Cegah double popup
-      if (notifId <= _lastNotifId) return;
-      _lastNotifId = notifId;
+        if (notifId <= _lastNotifId) continue;
 
-      await showNotification(
-        id: notifId,
-        title: _titleFromNotif(notif),
-        body: notif['pesan'] ?? '',
-        payload: 'notif_$notifId',
-      );
+        _lastNotifId = notifId;
+
+        await showNotification(
+          id: notifId,
+          title: _titleFromNotif(notif),
+          body: notif['pesan'] ?? '',
+          payload: 'notif_$notifId',
+        );
+      }
     } catch (e) {
-      // log saja, jangan crash
+      debugPrint('Notif polling error: $e');
     }
   }
 }

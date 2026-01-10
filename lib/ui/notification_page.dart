@@ -25,7 +25,6 @@ class _NotificationPageState extends State<NotificationPage> {
   @override
   void initState() {
     super.initState();
-    NotificationService().init();
     _fetchData(); // Ambil data dari API saat halaman dibuka
   }
 
@@ -181,15 +180,20 @@ class NotifData {
     NotifIconType iconType;
     String generatedTitle;
 
-    switch (json['judul']) {
-      case 'Laporan Diverifikasi':
+    switch (json['tipe_notif']) {
+      case 'Update_Status':
         iconType = NotifIconType.check;
         generatedTitle = 'Laporan Disetujui';
         break;
 
-      case 'Laporan Ditolak':
+      case 'Permintaan_Verifikasi':
         iconType = NotifIconType.warning;
         generatedTitle = 'Laporan Ditolak';
+        break;
+
+      case 'Login_Streak':
+        iconType = NotifIconType.fire;
+        generatedTitle = 'Login Harian';
         break;
 
       default:
@@ -226,80 +230,7 @@ class NotifData {
   }
 }
 
-enum NotifIconType { warning, location, chart, check }
-
-// =======================================================
-// SERVICE SYSTEM NOTIFICATION (TETAP SAMA)
-// =======================================================
-class NotificationService {
-  static final NotificationService _instance = NotificationService._internal();
-  factory NotificationService() => _instance;
-  NotificationService._internal();
-
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  Future<void> init() async {
-    // 1. Settingan Android
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    // 2. Settingan Linux (Wajib ada jika dijalankan di Linux/Windows tertentu)
-    const LinuxInitializationSettings initializationSettingsLinux =
-        LinuxInitializationSettings(defaultActionName: 'Open notification');
-
-    // 3. Gabungkan Settingan
-    final InitializationSettings initializationSettings =
-        InitializationSettings(
-      android: initializationSettingsAndroid,
-      linux: initializationSettingsLinux,
-      // Tambahkan iOS/MacOS jika perlu
-      iOS: const DarwinInitializationSettings(),
-      macOS: const DarwinInitializationSettings(),
-    );
-
-    // 4. Cek Platform sebelum initialize agar tidak crash
-    // Kita hanya jalankan notifikasi penuh jika di Mobile (Android/iOS)
-    // Atau jika di desktop, kita biarkan tapi pastikan tidak error
-
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-      // Init untuk HP
-      await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-      await _requestPermission();
-    } else {
-      // Jika di Windows/Desktop, kita skip init atau handle khusus
-      // Biar ga error "Windows settings must be set", kita return saja
-      print("Notifikasi sistem dilewati karena berjalan di Windows/Web");
-      return;
-    }
-  }
-
-  Future<void> _requestPermission() async {
-    // Permission handler juga error kalau dipanggil di Windows
-    if (Platform.isAndroid || Platform.isIOS) {
-      await Permission.notification.request();
-    }
-  }
-
-  Future<void> showNotification({
-    required int id,
-    required String title,
-    required String body,
-  }) async {
-    // Jangan panggil showNotification kalau bukan di HP
-    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
-      print("Pop-up notifikasi: $title - $body"); // Print di console aja
-      return;
-    }
-
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails('parkhive', 'ParkHive Notif',
-            importance: Importance.max, priority: Priority.high);
-    const NotificationDetails details =
-        NotificationDetails(android: androidDetails);
-    await flutterLocalNotificationsPlugin.show(id, title, body, details);
-  }
-}
+enum NotifIconType { warning, location, chart, check, fire }
 
 // =======================================================
 // ITEM WIDGET (Update Sedikit untuk Visual Status Baca)
@@ -325,6 +256,12 @@ class _NotifItem extends StatelessWidget {
       case NotifIconType.check:
         return const Icon(Icons.check_circle_outline,
             size: 26, color: Colors.blue);
+      case NotifIconType.fire:
+        return const Icon(
+          Icons.local_fire_department,
+          size: 26,
+          color: Colors.deepOrange,
+        );
     }
   }
 

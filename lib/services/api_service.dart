@@ -15,6 +15,31 @@ class ApiService {
 
   static const String _tokenKey = 'authToken';
 
+  late Dio dio;
+
+  ApiService() {
+    dio = Dio(
+      BaseOptions(
+        baseUrl: _baseUrl,
+        headers: {
+          'Accept': 'application/json',
+        },
+      ),
+    );
+
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          final token = await getToken();
+          if (token != null) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          return handler.next(options);
+        },
+      ),
+    );
+  }
+
   // ================= TOKEN =================
 
   Future<void> _saveToken(String token) async {
@@ -495,13 +520,4 @@ class ApiService {
     final res = await dio.get('/notifikasi/unread');
     return res.data['data'] ?? [];
   }
-
-  final Dio dio = Dio(
-    BaseOptions(
-      baseUrl: 'https://trpl-303-park-hive.vercel.app/public/api',
-      headers: {
-        'Accept': 'application/json',
-      },
-    ),
-  );
 }
